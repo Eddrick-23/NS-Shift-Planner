@@ -7,7 +7,7 @@ class GridManager:
     """
 
     def __init__(self):
-        self.all_grids = []
+        self.all_grids = {}
         self.setup_grid_handlers()
 
     def setup_grid_handlers(self):
@@ -16,12 +16,12 @@ class GridManager:
 
         This method is called automatically upon class instantiation
         """
-        all_locations = ["MCC ", "HCC1", "HCC2"]
+        all_locations = ["MCC", "HCC1", "HCC2"]
         for location in all_locations:
             for i in range(1, 4):
-                if i == 3 and location != "MCC ":
+                if i == 3 and location != "MCC":
                     continue
-                self.all_grids.append(GridHandler(location=location, day=i))
+                self.all_grids[f"Day{i}{location}"] = GridHandler(location=location,day=i)
 
     def format_keys(self, df1, df2=None, df3=None) -> list[str]:
         """
@@ -69,6 +69,20 @@ class GridManager:
                 )  # slice string for HH:MM format
 
         return blocks_to_remove
+
+    def get_day_aggrid(day: int):
+        """
+        get all grid data in aggrid supported format for specified day
+
+        E.g. for day 1 will be grids for MCC day 1, HCC1 day 1, HCC2 day 1 ...
+
+        Args:
+            day (int): Grid data from which day to get
+
+        Returns:
+            Dict[str,dict]. Where the key is the grid identifier, and the value is the dataframe converted to aggrid format
+        """
+
 
 
 if __name__ == "__main__":

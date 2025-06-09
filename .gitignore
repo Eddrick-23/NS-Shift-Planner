@@ -1,0 +1,5 @@
+.pytest_cache
+secrets
+**/__pycache__/
+*.pyc
+.env

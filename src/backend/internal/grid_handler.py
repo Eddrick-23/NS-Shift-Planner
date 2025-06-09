@@ -63,8 +63,8 @@ class GridHandler:
             for c in self.data.columns[2:]:  # for each column
                 total_hours = 0
                 freq = self.data[c].value_counts().to_dict()
-                if "MCC " in freq:
-                    total_hours += freq["MCC "] * 0.5
+                if "MCC" in freq:
+                    total_hours += freq["MCC"] * 0.5
                 if "HCC1" in freq:
                     total_hours += freq["HCC1"] * 0.5
                 if "HCC2" in freq:
@@ -178,7 +178,7 @@ class GridHandler:
     def is_shift_allocated(self, time_block, name) -> bool:
         """
         time_block(str):
-            str in "HH:MM:SS" Format. In 30 min intervals
+            str in "HH:MM" Format. In 30 min intervals
 
         name(str):
             name of person. Must already exist in column
@@ -202,12 +202,12 @@ class GridHandler:
         location(str):
             "MCC" or "HCC1" or "HCC2"
         time_block(str):
-            str in "HH:MM:SS" Format. In 30 min intervals
+            str in "HH:MM" Format. In 30 min intervals
         name(str):
             name of person. Must already exist in column
         """
-        if self.day == 3 and location not in ["MCC ", "0   "]:
-            location = "MCC "  # default location for night duty
+        if self.day == 3 and location not in ["MCC", "0   "]:
+            location = "MCC"  # default location for night duty
 
         allocated = self.is_shift_allocated(time_block=time_block, name=name)
         if allocated is None:  # invalid parameters
@@ -224,7 +224,7 @@ class GridHandler:
     def remove_shift(self, time_block, name):
         """
         time_block(str):
-            str in "HH:MM:SS" Format. In 30 min intervals
+            str in "HH:MM" Format. In 30 min intervals
         name(str):
             name of person. Must already exist in column
         """
@@ -279,7 +279,7 @@ class GridHandler:
         for col in s.columns:
             for row in range(len(s)):
                 if (
-                    s[col][row] == "MCC "
+                    s[col][row] == "MCC"
                     or s[col][row] == "HCC1"
                     or s[col][row] == "HCC2"
                 ):
@@ -302,26 +302,44 @@ class GridHandler:
         else:
             return "color: black"
 
-    def generate_formatted_df(self, keys, joined):
-        formatted_data = {}
-        for c in self.data.columns[2:]:
-            formatted_data[c] = []
-        for c in self.data.columns[2:]:
-            joined_copy = joined.copy()
-            data = self.data[c].to_list()
-            for i in range(0, len(data), 2):
-                first, second = data[i], data[i + 1]
-                to_join = joined_copy.pop(0)  # check whether this pair is joined
+    def generate_formatted_dataframe(self, blocks_to_remove):
+        """
+        Formats the dataframe to the required format for the front end, including the 1h time blocks that can be joined
+        """
+        data = self.data.copy()
+        data = data.drop(columns=["DAY"])
+        rotated_df = data.set_index("Time").T.reset_index()
 
-                formatted_data[c].append(first)
-                if not to_join:
-                    formatted_data[c].append(second)
+        rotated_df = rotated_df.rename(columns={"index": f"DAY{self.day}:{self.location}"})
+        rotated_df = rotated_df.drop(columns=blocks_to_remove)
 
-        # Create a DataFrame with formatted time stamps
-        df = pd.DataFrame(columns=[f"DAY{self.day}: {self.location}"] + keys)
+        return rotated_df
 
-        ## Add the new row to the DataFrame
-        for k in formatted_data.keys():
-            df.loc[len(df)] = [k] + formatted_data[k]  # values is a formatted list
+    def df_to_aggrid_format(self,df):
+        """
+        Converts dataframe to aggrid supported format 
 
-        return df
+        Returns:
+            list[dict]:
+                list of dictionaries to be served as json data for frontend
+        """
+        # Create column definitions (skip index if needed)
+        column_defs = [{'headerName': col, 'field': col} for col in df.columns]
+
+        # Convert dataframe rows to list of dicts
+        row_data = df.to_dict(orient='records')
+
+        return {
+            'columnDefs': column_defs,
+            'rowData': row_data,
+        }
+    def store_json(self):
+        """
+        Convert dataframe to json for storage in database
+
+        R
+        """
+        data = self.data.copy()
+        json_data = data.to_json()
+
+        return json_data

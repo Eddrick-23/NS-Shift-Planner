@@ -24,14 +24,14 @@ def test_class_init(test_manager: "GridManager"):
     assert len(grid_handlers) == 7
 
     expected_configs = set()
-    LOCATIONS = ["MCC ", "HCC1", "HCC2"]
+    LOCATIONS = ["MCC", "HCC1", "HCC2"]
     for loc in LOCATIONS:
         for i in range(1, 4):
-            if i == 3 and loc != "MCC ":
+            if i == 3 and loc != "MCC":
                 continue
             expected_configs.add((loc, i))
 
-    for handler in grid_handlers:
+    for handler in grid_handlers.values():
         location, day = handler.location, handler.day
 
         if (location, day) in expected_configs:
@@ -41,7 +41,7 @@ def test_class_init(test_manager: "GridManager"):
 
 
 def test_format_keys_join_time_block_one_dataframe(test_manager, handler_factory):
-    handler = handler_factory(location="MCC ", day=3)
+    handler = handler_factory(location="MCC", day=3)
     handler = cast(GridHandler, handler)
 
     handler.add_name("TEST1")
@@ -62,7 +62,7 @@ def test_format_keys_join_time_block_one_dataframe(test_manager, handler_factory
 def test_format_keys_cannot_join_time_block_one_dataframe(
     test_manager, handler_factory
 ):
-    handler = handler_factory(location="MCC ", day=3)
+    handler = handler_factory(location="MCC", day=3)
     handler = cast(GridHandler, handler)
 
     handler.add_name("TEST1")
@@ -87,7 +87,7 @@ def test_format_keys_cannot_join_time_block_one_dataframe(
 
 def generate_day_location_combinatons():
     DAY = [1, 2]
-    LOCATIONS = ["MCC ", "HCC1", "HCC2"]
+    LOCATIONS = ["MCC", "HCC1", "HCC2"]
 
     all_location_permutations = itertools.permutations(LOCATIONS)
 
@@ -107,7 +107,7 @@ def generate_day_location_combinatons():
 def test_format_keys_join_time_block(
     test_manager, handler_factory, day, allocate_loc1, allocate_loc2, allocate_loc3
 ):
-    handler1 = handler_factory(location="MCC ", day=day)
+    handler1 = handler_factory(location="MCC", day=day)
     handler2 = handler_factory(location="HCC1", day=day)
     handler3 = handler_factory(location="HCC2", day=day)
     handler1 = cast(GridHandler, handler1)
@@ -142,7 +142,7 @@ def test_format_keys_join_time_block(
 def test_format_keys_join_time_block_multiple_names(
     test_manager, handler_factory, day, allocate_loc1, allocate_loc2, allocate_loc3
 ):
-    handler1 = handler_factory(location="MCC ", day=day)
+    handler1 = handler_factory(location="MCC", day=day)
     handler2 = handler_factory(location="HCC1", day=day)
     handler3 = handler_factory(location="HCC2", day=day)
     handler1 = cast(GridHandler, handler1)
@@ -196,7 +196,7 @@ def test_format_keys_join_time_block_multiple_names(
 def test_format_keys_cannot_join_time_block(
     test_manager, handler_factory, day, allocate_loc1, allocate_loc2, allocate_loc3
 ):
-    handler1 = handler_factory(location="MCC ", day=day)
+    handler1 = handler_factory(location="MCC", day=day)
     handler2 = handler_factory(location="HCC1", day=day)
     handler3 = handler_factory(location="HCC2", day=day)
     handler1 = cast(GridHandler, handler1)

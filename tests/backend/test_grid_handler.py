@@ -253,7 +253,7 @@ def test_is_shift_allocated_true(grid_with_shifts: "GridHandler", time_block):
 @pytest.mark.parametrize("time_block", ["12:00", "07:30", "18:00"])
 def test_allocate_shift_new_shift(grid_with_names: "GridHandler", time_block):
     NAME = "TEST"
-    LOCATIONS = ["MCC ", "HCC1", "HCC2"]
+    LOCATIONS = ["MCC", "HCC1", "HCC2"]
     loc = random.choice(LOCATIONS)
     grid_with_names.allocate_shift(location=loc, name=NAME, time_block=time_block)
     assert grid_with_names.hours[NAME] == 0.5
@@ -304,15 +304,15 @@ def test_allocate_shift_day_3(empty_grid: "GridHandler"):
 
     empty_grid.allocate_shift(location=LOC1, time_block=TIME_BLOCK1, name="TEST")
     assert empty_grid.hours[NAME] == 0.5
-    assert empty_grid.get_shift_location(time_block=TIME_BLOCK1, name=NAME) == "MCC "
+    assert empty_grid.get_shift_location(time_block=TIME_BLOCK1, name=NAME) == "MCC"
 
     empty_grid.allocate_shift(location=LOC2, time_block=TIME_BLOCK2, name=NAME)
     assert empty_grid.hours[NAME] == 1
-    assert empty_grid.get_shift_location(time_block=TIME_BLOCK2, name=NAME) == "MCC "
+    assert empty_grid.get_shift_location(time_block=TIME_BLOCK2, name=NAME) == "MCC"
 
 
 def generate_location_day_combinations():
-    LOCATION = ["MCC ", "HCC1", "HCC2"]
+    LOCATION = ["MCC", "HCC1", "HCC2"]
     DAY = [1, 2]
     combinations = []
     for loc in LOCATION:
@@ -381,17 +381,25 @@ def test_check_lunch_and_dinner(handler_factory, location, day):
 
 
 def test_generate_formatted_df(handler_factory):
-    handler = handler_factory(location="MCC ", day=1)
+    handler = handler_factory(location="MCC", day=1)
     handler = cast(GridHandler, handler)
 
     handler.add_name("TEST")
+    blocks_to_remove = ["08:30", "09:30"]
+    result = handler.generate_formatted_dataframe(blocks_to_remove)
+    cols = result.columns.to_list()
 
-    data = handler.data.copy()
+    for time_block in blocks_to_remove:
+        assert time_block not in cols
 
-    data = data.drop(columns=["DAY"])
+def test_df_to_aggrid_format(handler_factory):
+    handler = handler_factory(location="MCC", day=1)
+    handler = cast(GridHandler, handler)
 
-    data = data.set_index("Time").T.reset_index()
+    handler.add_name("TEST")
+    blocks_to_remove = ["08:30", "09:30"]
+    result = handler.generate_formatted_dataframe(blocks_to_remove) 
 
-    rotated_df = data.rename(columns={"index": "NAME"})
-    print("")
-    print(rotated_df)
+    aggrid_format = handler.df_to_aggrid_format(result)
+
+    print(aggrid_format)
