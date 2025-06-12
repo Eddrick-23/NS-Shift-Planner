@@ -96,7 +96,7 @@ class GridHandler:
             return
         self.names.add(upper_name)
         if shifts == []:
-            self.data[upper_name] = ["0   "] * len(
+            self.data[upper_name] = ["0"] * len(
                 self.data.index
             )  # each cell is 4 characters long
         else:
@@ -106,7 +106,7 @@ class GridHandler:
     def _compute_hours(self, shifts: list):
         hours = 0
         for shift in shifts:
-            if shift != "0   ":
+            if shift != "0":
                 hours += 0.5
 
         return hours
@@ -175,7 +175,7 @@ class GridHandler:
             self.hours[name1],
         )  # swap the hour count
 
-    def is_shift_allocated(self, time_block, name) -> bool:
+    def is_shift_allocated(self, time_block, name) -> bool | None:
         """
         time_block(str):
             str in "HH:MM" Format. In 30 min intervals
@@ -183,43 +183,79 @@ class GridHandler:
         name(str):
             name of person. Must already exist in column
         """
-        name = name.upper()
-        if name not in self.names:
+        name_upper = name.upper()
+        if name_upper not in self.data.columns:
             self.logger.warning(
                 "%s:%s does not exist in the grid", self.identifier, name
             )
             return None
-        rows = self.data[self.data["Time"] == time_block]
+        rows = self.data[self.data.Time == time_block]
         if rows.empty:
             self.logger.warning(
                 "%s:%s is not a valid time block", self.identifier, time_block
             )
             return None
-        return rows[name].iloc[0] != "0   "
+        return rows[name_upper].iloc[0] != "0"
 
     def allocate_shift(self, location, time_block, name):
         """
-        location(str):
-            "MCC" or "HCC1" or "HCC2"
-        time_block(str):
-            str in "HH:MM" Format. In 30 min intervals
-        name(str):
-            name of person. Must already exist in column
-        """
-        if self.day == 3 and location not in ["MCC", "0   "]:
-            location = "MCC"  # default location for night duty
+        Allocate a shift to a person at a specified time_block and location
 
-        allocated = self.is_shift_allocated(time_block=time_block, name=name)
-        if allocated is None:  # invalid parameters
-            return
+        Args:
+            location(str):
+                "MCC" or "HCC1" or "HCC2"
+            time_block(str):
+                str in "HH:MM" Format. In 30 min intervals
+            name(str):
+                name of person. Must already exist in column
+        """
         # shift empty add hours
-        # shift changing to "0   " subtract hours
+        # shift changing to "0" subtract hours
         # shift replacing to different location, keep hours change location
+        final_location, allocated = self._resolve_location(location, time_block, name)
+        if final_location is None:
+            return
         if not allocated:
             self.hours[name] += 0.5
-        elif allocated and location == "0   ":
+        elif allocated and final_location == "0":
             self.hours[name] -= 0.5
-        self.data.loc[(self.data.Time == time_block), name.upper()] = location
+        self.data.loc[(self.data.Time == time_block), name.upper()] = final_location
+
+    def _resolve_location(
+        self, new_location: str, time_block: str, name: str
+    ) -> tuple[str | None, bool]:
+        """
+        Resolve the final location to allocate
+        - If location == current location, we deallocate
+        - If location != "0" we allocate
+
+        Args:
+            location(str): location to allocate
+            time_block(str): time block to allocate
+            name(str): name to allocate to
+
+        Returns:
+            - final allocation location(str)| (None) if there is internal error
+            - Whether current block is already allocated(bool)
+        """
+        final_location = new_location
+        # check if shift is currently allocated
+        allocated = self.is_shift_allocated(time_block, name)
+        if allocated is None:
+            return None, False
+
+        # For day 3 location should be "MCC" or "0"
+        if self.day == 3 and new_location not in ["MCC", "0"]:
+            final_location = "MCC"  # default location for night duty
+
+        # get the current location
+        current_location = self.get_shift_location(time_block, name)
+        if current_location is None:
+            return None, False
+
+        if current_location == final_location:
+            final_location = "0"
+        return final_location, allocated
 
     def remove_shift(self, time_block, name):
         """
@@ -228,7 +264,7 @@ class GridHandler:
         name(str):
             name of person. Must already exist in column
         """
-        self.data.loc[(self.data.Time == time_block), name.upper()] = "0   "
+        self.data.loc[(self.data.Time == time_block), name.upper()] = "0"
         self.hours[name] -= 0.5
 
     def get_shift_location(self, time_block, name):
@@ -238,7 +274,20 @@ class GridHandler:
         name(str):
             name of person. Must already exist in column
         """
-        return self.data.loc[(self.data.Time == time_block), name.upper()].iloc[0]
+        name_upper = name.upper()
+        if name_upper not in self.data.columns:
+            self.logger.warning(
+                "%s:%s does not exist in the grid", self.identifier, name
+            )
+            return None
+        rows = self.data[self.data.Time == time_block]
+        if rows.empty:
+            self.logger.warning(
+                "%s:%s is not a valid time block", self.identifier, time_block
+            )
+            return None
+
+        return rows[name_upper].iloc[0]
 
     def check_lunch_and_dinner(self):
         """
@@ -258,49 +307,13 @@ class GridHandler:
         ]
 
         for c in lunch.columns[2:]:  # check lunch
-            if "0   " not in lunch[c].array:
+            if "0" not in lunch[c].array:
                 result.add(c)
         for c in dinner.columns[2:]:  # check dinner
-            if c not in result and "0   " not in dinner[c].array:
+            if c not in result and "0" not in dinner[c].array:
                 result.add(c)
 
         return result
-
-    def highlight_cells(self, s):
-        """
-        helper function for generate_formatted_df
-        """
-        # Create an empty DataFrame to hold the styles
-        styles = pd.DataFrame("", index=s.index, columns=s.columns)
-        # names_to_highlight = None
-        # if self.day == 1 or self.day == 2:
-        #         names_to_highlight = self.check_lunch_and_dinner()
-
-        for col in s.columns:
-            for row in range(len(s)):
-                if (
-                    s[col][row] == "MCC"
-                    or s[col][row] == "HCC1"
-                    or s[col][row] == "HCC2"
-                ):
-                    styles.at[row, col] = "background-color: green;"
-
-                # elif names_to_highlight != None and s[col][row] in names_to_highlight:
-                #     styles.at[row,col] = 'background-color: red;'
-                else:
-                    styles.at[row, col] = "background-color: white"
-        return styles
-
-    def highlight_values(self, val):
-        """
-        helper function for generate_formatted_df()
-        """
-        if val == self.location:
-            return "color: green"
-        elif val == "0   ":
-            return "color: white"
-        else:
-            return "color: black"
 
     def generate_formatted_dataframe(self, blocks_to_remove):
         """
@@ -310,34 +323,59 @@ class GridHandler:
         data = data.drop(columns=["DAY"])
         rotated_df = data.set_index("Time").T.reset_index()
 
-        rotated_df = rotated_df.rename(columns={"index": f"DAY{self.day}:{self.location}"})
+        rotated_df = rotated_df.rename(
+            columns={"index": f"DAY{self.day}:{self.location}"}
+        )
         rotated_df = rotated_df.drop(columns=blocks_to_remove)
 
         return rotated_df
 
-    def df_to_aggrid_format(self,df):
+    def df_to_aggrid_format(self, df):
         """
-        Converts dataframe to aggrid supported format 
+        Converts dataframe to aggrid supported format
 
         Returns:
             list[dict]:
                 list of dictionaries to be served as json data for frontend
         """
         # Create column definitions (skip index if needed)
-        column_defs = [{'headerName': col, 'field': col} for col in df.columns]
+        column_defs = [{"headerName": col, "field": col} for col in df.columns]
+        # Add styling for first column
+        self._style_columns(column_defs)
 
         # Convert dataframe rows to list of dicts
-        row_data = df.to_dict(orient='records')
+        row_data = df.to_dict(orient="records")
+        # Add styling for row_data
 
         return {
-            'columnDefs': column_defs,
-            'rowData': row_data,
+            "columnDefs": column_defs,
+            "rowData": row_data,
         }
+
+    def _style_columns(self, column_defs: list[dict]) -> list[dict]:
+        """
+        Inject data into column definitions for styling
+        """
+        # fix first column width
+        column_defs[0]["width"] = 150
+        column_defs[0]["suppressSizeToFit"] = True  # fix column width
+        # add flex to rest of columns and cell calss rules
+        cell_class_rules = {
+            "bg-white text-white": 'x=="0"',
+            "bg-green text-green": f'x=="{self.location}"',
+            "bg-green text-black": f'x != 0 && x !=="{self.location}"'
+        }
+        for i in range(1, len(column_defs)):
+            data = column_defs[i]
+            data["flex"] = 1
+            data["resizable"] = False
+            data["sortable"] = False
+            data["cellClassRules"] = cell_class_rules
+        return column_defs
+
     def store_json(self):
         """
         Convert dataframe to json for storage in database
-
-        R
         """
         data = self.data.copy()
         json_data = data.to_json()

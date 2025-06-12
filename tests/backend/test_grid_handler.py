@@ -2,6 +2,7 @@ import pytest
 import random
 import logging
 from typing import cast
+from unittest.mock import patch
 from src.backend.internal.grid_handler import GridHandler
 
 
@@ -101,7 +102,7 @@ def test_add_name(empty_grid: "GridHandler"):
 @pytest.mark.parametrize("num_allocated", [4, 8, 5, 0])
 def test_add_name_with_shifts(empty_grid: "GridHandler", num_allocated):
     NUM_SHIFTS = len(empty_grid.data.index)
-    SHIFTS = ["0   "] * NUM_SHIFTS
+    SHIFTS = ["0"] * NUM_SHIFTS
     replace_indeces = random.sample(range(len(SHIFTS)), num_allocated)
     for idx in replace_indeces:
         SHIFTS[idx] = empty_grid.location
@@ -262,7 +263,7 @@ def test_allocate_shift_new_shift(grid_with_names: "GridHandler", time_block):
 @pytest.mark.parametrize("time_block", ["12:00", "07:30", "18:00"])
 def test_allocate_shift_removing_shift(grid_with_shifts: "GridHandler", time_block):
     NAME = "TEST"
-    LOCATION = "0   "
+    LOCATION = "0"
     original_hours = grid_with_shifts.hours[NAME]
     grid_with_shifts.allocate_shift(location=LOCATION, name=NAME, time_block=time_block)
 
@@ -285,30 +286,75 @@ def test_allocate_shift_replacing_shift(grid_with_shifts: "GridHandler", time_bl
     assert grid_with_shifts.hours[NAME] == original_hours
 
 
+@patch("src.backend.internal.grid_handler.GridHandler.get_shift_location")
+@patch("src.backend.internal.grid_handler.GridHandler.is_shift_allocated")
 @pytest.mark.parametrize(
-    "empty_grid",
-    [
-        {"location": "HCC1", "day": 3},
-        {"location": "HCC2", "day": 3},
-        {"location": "MCC", "day": 3},
-    ],
-    indirect=True,
+    "new_location, current_location",
+    [("MCC", "0"), ("MCC", "MCC"), ("HCC1", "MCC"), ("HCC2", "MCC")],
 )
-def test_allocate_shift_day_3(empty_grid: "GridHandler"):
+def test_resolve_location_not_day_3(
+    mock_allocated, mock_location, handler_factory, new_location, current_location
+):
+    mock_allocated.return_value = True
+    mock_location.return_value = current_location
+    handler = handler_factory(location="MCC", day=1)
+    handler = cast(GridHandler, handler)
     NAME = "TEST"
-    empty_grid.add_name(NAME)
+    new_location = new_location
+    time_block = "12:00"
+
+    final_location, allocated = handler._resolve_location(
+        new_location, time_block, NAME
+    )
+    if new_location == current_location:
+        assert final_location == "0"
+    else:
+        assert final_location == new_location
+
+
+@patch("src.backend.internal.grid_handler.GridHandler.get_shift_location")
+@patch("src.backend.internal.grid_handler.GridHandler.is_shift_allocated")
+@pytest.mark.parametrize(
+    "new_location, current_location",
+    [("MCC", "0"), ("MCC", "MCC"), ("HCC1", "MCC"), ("HCC2", "MCC")],
+)
+def test_resolve_location_day_3(
+    mock_allocated, mock_location, handler_factory, new_location, current_location
+):
+    mock_allocated.return_value = True
+    mock_location.return_value = current_location
+    handler = handler_factory(location="MCC", day=3)
+    handler = cast(GridHandler, handler)
+
+    NAME = "TEST"
+    new_location = new_location
+    time_block = "22:00"
+    final_location, allocated = handler._resolve_location(
+        new_location, time_block, NAME
+    )
+    if current_location == "MCC":
+        assert final_location == "0"
+    else:
+        assert final_location == "MCC"
+
+
+def test_allocate_shift_day_3(handler_factory):
+    handler = handler_factory(location="MCC", day=3)
+    handler = cast(GridHandler, handler)
+    NAME = "TEST"
+    handler.add_name(NAME)
     TIME_BLOCK1 = "22:00"
     LOC1 = "HCC1"
     TIME_BLOCK2 = "05:00"
     LOC2 = "HCC2"
 
-    empty_grid.allocate_shift(location=LOC1, time_block=TIME_BLOCK1, name="TEST")
-    assert empty_grid.hours[NAME] == 0.5
-    assert empty_grid.get_shift_location(time_block=TIME_BLOCK1, name=NAME) == "MCC"
+    handler.allocate_shift(location=LOC1, time_block=TIME_BLOCK1, name="TEST")
+    assert handler.hours[NAME] == 0.5
+    assert handler.get_shift_location(time_block=TIME_BLOCK1, name=NAME) == "MCC"
 
-    empty_grid.allocate_shift(location=LOC2, time_block=TIME_BLOCK2, name=NAME)
-    assert empty_grid.hours[NAME] == 1
-    assert empty_grid.get_shift_location(time_block=TIME_BLOCK2, name=NAME) == "MCC"
+    handler.allocate_shift(location=LOC2, time_block=TIME_BLOCK2, name=NAME)
+    assert handler.hours[NAME] == 1
+    assert handler.get_shift_location(time_block=TIME_BLOCK2, name=NAME) == "MCC"
 
 
 def generate_location_day_combinations():
@@ -392,13 +438,14 @@ def test_generate_formatted_df(handler_factory):
     for time_block in blocks_to_remove:
         assert time_block not in cols
 
+
 def test_df_to_aggrid_format(handler_factory):
     handler = handler_factory(location="MCC", day=1)
     handler = cast(GridHandler, handler)
 
     handler.add_name("TEST")
     blocks_to_remove = ["08:30", "09:30"]
-    result = handler.generate_formatted_dataframe(blocks_to_remove) 
+    result = handler.generate_formatted_dataframe(blocks_to_remove)
 
     aggrid_format = handler.df_to_aggrid_format(result)
 

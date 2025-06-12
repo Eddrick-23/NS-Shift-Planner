@@ -18,6 +18,30 @@ def handler_factory():
     return _factory
 
 
+@pytest.fixture
+def manager_with_grid_with_name(test_manager, handler_factory, request):
+    TEST_NAMES = ["TEST_A", "TEST_B", "TEST_C", "TEST_D"]
+    day = request.param
+    if day == 3:
+        handler = handler_factory(location="MCC", day=3)
+        for name in TEST_NAMES:
+            handler.add_name(name)
+        test_manager.all_grids["DAY3:MCC"] = handler
+        return test_manager
+
+    handler1 = handler_factory(location="MCC", day=day)
+    handler2 = handler_factory(location="HCC1", day=day)
+    handler3 = handler_factory(location="HCC2", day=day)
+    handler1.add_name("TEST_A")
+    handler1.add_name("TEST_B")
+    handler2.add_name("TEST_C")
+    handler3.add_name("TEST_D")
+    test_manager.all_grids[f"DAY{day}:MCC"] = handler1
+    test_manager.all_grids[f"DAY{day}:HCC1"] = handler2
+    test_manager.all_grids[f"DAY{day}:HCC2"] = handler3
+    return test_manager
+
+
 def test_class_init(test_manager: "GridManager"):
     grid_handlers = test_manager.all_grids
 
@@ -151,12 +175,8 @@ def test_format_keys_join_time_block_multiple_names(
 
     handler1.add_name("TEST1_1")
     handler1.add_name("TEST1_2")
-    handler1.allocate_shift(
-        location=allocate_loc1, time_block="08:00", name="TEST1_1"
-    )
-    handler1.allocate_shift(
-        location=allocate_loc1, time_block="08:30", name="TEST1_1"
-    )
+    handler1.allocate_shift(location=allocate_loc1, time_block="08:00", name="TEST1_1")
+    handler1.allocate_shift(location=allocate_loc1, time_block="08:30", name="TEST1_1")
 
     handler2.add_name("TEST2")
     handler2.allocate_shift(location=allocate_loc2, time_block="09:00", name="TEST2")
@@ -165,18 +185,10 @@ def test_format_keys_join_time_block_multiple_names(
     handler3.add_name("TEST3_1")
     handler3.add_name("TEST3_2")
     handler3.add_name("TEST3_3")
-    handler3.allocate_shift(
-        location=allocate_loc3, time_block="17:00", name="TEST3_1"
-    )
-    handler3.allocate_shift(
-        location=allocate_loc3, time_block="17:30", name="TEST3_1"
-    )
-    handler3.allocate_shift(
-        location=allocate_loc3, time_block="18:00", name="TEST3_3"
-    )
-    handler3.allocate_shift(
-        location=allocate_loc3, time_block="18:30", name="TEST3_3"
-    )
+    handler3.allocate_shift(location=allocate_loc3, time_block="17:00", name="TEST3_1")
+    handler3.allocate_shift(location=allocate_loc3, time_block="17:30", name="TEST3_1")
+    handler3.allocate_shift(location=allocate_loc3, time_block="18:00", name="TEST3_3")
+    handler3.allocate_shift(location=allocate_loc3, time_block="18:30", name="TEST3_3")
 
     blocks_to_remove = test_manager.format_keys(
         handler1.data, handler2.data, handler3.data
@@ -205,12 +217,8 @@ def test_format_keys_cannot_join_time_block(
 
     handler1.add_name("TEST1_1")
     handler1.add_name("TEST1_2")
-    handler1.allocate_shift(
-        location=allocate_loc1, time_block="08:00", name="TEST1_1"
-    )
-    handler1.allocate_shift(
-        location=allocate_loc1, time_block="08:30", name="TEST1_2"
-    )
+    handler1.allocate_shift(location=allocate_loc1, time_block="08:00", name="TEST1_1")
+    handler1.allocate_shift(location=allocate_loc1, time_block="08:30", name="TEST1_2")
 
     handler2.add_name("TEST2")
     handler2.allocate_shift(location=allocate_loc2, time_block="09:00", name="TEST2")
@@ -219,18 +227,10 @@ def test_format_keys_cannot_join_time_block(
     handler3.add_name("TEST3_1")
     handler3.add_name("TEST3_2")
     handler3.add_name("TEST3_3")
-    handler3.allocate_shift(
-        location=allocate_loc3, time_block="17:00", name="TEST3_1"
-    )
-    handler3.allocate_shift(
-        location=allocate_loc3, time_block="18:30", name="TEST3_1"
-    )
-    handler3.allocate_shift(
-        location=allocate_loc3, time_block="18:00", name="TEST3_3"
-    )
-    handler3.allocate_shift(
-        location=allocate_loc3, time_block="18:30", name="TEST3_3"
-    )
+    handler3.allocate_shift(location=allocate_loc3, time_block="17:00", name="TEST3_1")
+    handler3.allocate_shift(location=allocate_loc3, time_block="18:30", name="TEST3_1")
+    handler3.allocate_shift(location=allocate_loc3, time_block="18:00", name="TEST3_3")
+    handler3.allocate_shift(location=allocate_loc3, time_block="18:30", name="TEST3_3")
 
     blocks_to_remove = test_manager.format_keys(
         handler1.data, handler2.data, handler3.data
@@ -243,3 +243,79 @@ def test_format_keys_cannot_join_time_block(
     total_1h_blocks = len(handler1.data) / 2
     num_cannot_join = 3
     assert len(blocks_to_remove) == total_1h_blocks - num_cannot_join
+
+
+def test_update_existing_names_empty_grids(test_manager: "GridManager"):
+    existing_names = test_manager.existing_names
+    for names in existing_names.values():
+        assert names == set()
+    test_manager.update_existing_names(day=1)
+    test_manager.update_existing_names(day=2)
+    test_manager.update_existing_names(day=3)
+    for names in existing_names.values():
+        assert names == set()
+
+
+@pytest.mark.parametrize("manager_with_grid_with_name", [1], indirect=True)
+def test_update_existing_names_day_1(manager_with_grid_with_name: "GridManager"):
+    day = 1
+    manager = manager_with_grid_with_name
+    assert manager.existing_names[f"DAY{day}"] == set()
+    manager.update_existing_names(day)
+    original = manager.existing_names[f"DAY{day}"] 
+    assert len(original) == 4
+    manager.all_grids[f"DAY{day}:MCC"].add_name("TEST_MCC")
+    manager.all_grids[f"DAY{day}:HCC1"].add_name("TEST_HCC1")
+    manager.all_grids[f"DAY{day}:HCC2"].add_name("TEST_HCC2")
+    manager.update_existing_names(day)
+    after_adding = manager.existing_names[f"DAY{day}"]
+    assert len(after_adding) == 7
+    manager.all_grids[f"DAY{day}:MCC"].remove_name("TEST_MCC")
+    manager.all_grids[f"DAY{day}:HCC1"].remove_name("TEST_HCC1")
+    manager.all_grids[f"DAY{day}:HCC2"].remove_name("TEST_HCC2")
+    manager.update_existing_names(day)
+    after_removing = manager.existing_names[f"DAY{day}"]
+    assert len(after_removing) == 4
+
+
+
+
+@pytest.mark.parametrize("manager_with_grid_with_name", [2], indirect=True)
+def test_existing_names_day_2(manager_with_grid_with_name: "GridManager"):
+    day = 2
+    manager = manager_with_grid_with_name
+    assert manager.existing_names[f"DAY{day}"] == set()
+    manager.update_existing_names(day)
+    original = manager.existing_names[f"DAY{day}"] 
+    assert len(original) == 4
+    manager.all_grids[f"DAY{day}:MCC"].add_name("TEST_MCC")
+    manager.all_grids[f"DAY{day}:HCC1"].add_name("TEST_HCC1")
+    manager.all_grids[f"DAY{day}:HCC2"].add_name("TEST_HCC2")
+    manager.update_existing_names(day)
+    after_adding = manager.existing_names[f"DAY{day}"]
+    assert len(after_adding) == 7
+    manager.all_grids[f"DAY{day}:MCC"].remove_name("TEST_MCC")
+    manager.all_grids[f"DAY{day}:HCC1"].remove_name("TEST_HCC1")
+    manager.all_grids[f"DAY{day}:HCC2"].remove_name("TEST_HCC2")
+    manager.update_existing_names(day)
+    after_removing = manager.existing_names[f"DAY{day}"]
+    assert len(after_removing) == 4
+
+@pytest.mark.parametrize("manager_with_grid_with_name", [3], indirect=True)
+def test_update_existing_names_day_3(manager_with_grid_with_name:"GridManager"):
+    day = 3
+    manager = manager_with_grid_with_name
+    assert manager.existing_names[f"DAY{day}"] == set()
+    manager.update_existing_names(day)
+    original = manager.existing_names[f"DAY{day}"] 
+    assert len(original) == 4
+    manager.all_grids[f"DAY{day}:MCC"].add_name("TEST_ADD")
+    manager.update_existing_names(day)
+    after_adding = manager.existing_names[f"DAY{day}"]
+    assert "TEST_ADD" in after_adding
+    manager.all_grids[f"DAY{day}:MCC"].remove_name("TEST_ADD")
+    manager.update_existing_names(day)
+    after_removing = manager.existing_names[f"DAY{day}"]
+    assert "TEST_ADD" not in after_removing
+
+

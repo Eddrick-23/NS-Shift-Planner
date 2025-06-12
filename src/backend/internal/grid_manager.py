@@ -9,6 +9,7 @@ class GridManager:
     def __init__(self):
         self.all_grids = {}
         self.setup_grid_handlers()
+        self.existing_names = {"DAY1": set(), "DAY2": set(), "DAY3": set()}
 
     def setup_grid_handlers(self):
         """
@@ -21,7 +22,9 @@ class GridManager:
             for i in range(1, 4):
                 if i == 3 and location != "MCC":
                     continue
-                self.all_grids[f"Day{i}{location}"] = GridHandler(location=location,day=i)
+                self.all_grids[f"DAY{i}:{location}"] = GridHandler(
+                    location=location, day=i
+                )
 
     def format_keys(self, df1, df2=None, df3=None) -> list[str]:
         """
@@ -69,19 +72,33 @@ class GridManager:
                 )  # slice string for HH:MM format
 
         return blocks_to_remove
-
-    def get_day_aggrid(day: int):
+    
+    def update_existing_names(self, day:int):
         """
-        get all grid data in aggrid supported format for specified day
-
-        E.g. for day 1 will be grids for MCC day 1, HCC1 day 1, HCC2 day 1 ...
+        update the self.existing name attribute for a specified day
+        - used to track which names are already allocated for in a day
+        - prevents allocating the same name to different grids on the same day
 
         Args:
-            day (int): Grid data from which day to get
-
-        Returns:
-            Dict[str,dict]. Where the key is the grid identifier, and the value is the dataframe converted to aggrid format
+            day (int): Which day to update
         """
+        new_set = set()
+        for key,grid_handler in self.all_grids.items():
+            if f"DAY{day}" in key:
+                new_set = new_set.union(grid_handler.get_names())
+        self.existing_names[f"DAY{day}"] = new_set
+    
+    def name_exists(self,name,day:int) -> bool:
+        """
+        Checks if a name already exists in any DAY{x} grid
+        Args:
+            day (int)
+        Returns:
+            True if name exists else False
+        """
+        return name in self.existing_names[f"DAY{day}"]
+
+                
 
 
 
