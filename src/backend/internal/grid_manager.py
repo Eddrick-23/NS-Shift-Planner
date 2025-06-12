@@ -72,8 +72,8 @@ class GridManager:
                 )  # slice string for HH:MM format
 
         return blocks_to_remove
-    
-    def update_existing_names(self, day:int):
+
+    def update_existing_names(self, day: int):
         """
         update the self.existing name attribute for a specified day
         - used to track which names are already allocated for in a day
@@ -83,12 +83,12 @@ class GridManager:
             day (int): Which day to update
         """
         new_set = set()
-        for key,grid_handler in self.all_grids.items():
+        for key, grid_handler in self.all_grids.items():
             if f"DAY{day}" in key:
                 new_set = new_set.union(grid_handler.get_names())
         self.existing_names[f"DAY{day}"] = new_set
-    
-    def name_exists(self,name,day:int) -> bool:
+
+    def name_exists(self, name, day: int) -> bool:
         """
         Checks if a name already exists in any DAY{x} grid
         Args:
@@ -98,8 +98,22 @@ class GridManager:
         """
         return name in self.existing_names[f"DAY{day}"]
 
-                
+    def get_all_hours(self) -> dict:
+        """
+        Compute the total hours for each person across all grids
+        """
+        hour_data = {}
+        for name_set in self.existing_names.values():
+            for name in name_set:
+                if name not in hour_data:
+                    hour_data[name] = [0, 0, 0]
+        for grid_handler in self.all_grids.values():
+            hours = grid_handler.get_hours()
 
+            for name, hours in hours.items():
+                hour_data[name][grid_handler.day - 1] += hours
+
+        return hour_data
 
 
 if __name__ == "__main__":

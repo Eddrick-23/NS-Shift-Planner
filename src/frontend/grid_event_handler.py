@@ -17,26 +17,31 @@ class GridEventHandler:
         self.HCC1_grid = None
         self.HCC2_grid = None
 
+        # hide hcc2 if empty
+        self.visible = False
+
         # Set up keyboard listener
         self.keyboard = ui.keyboard(on_key=self.handle_key, active=True)
 
     async def generate_grids(self):
         """
-        Creates required grids, called once on class instantiation
+        Creates required grids, called once on class inself.stantiation
         """
         json_data = await self.fetch_grid_data()
         self.MCC_grid = self.create_grid(
-            column_defs=json_data["DAY1:MCC"]["columnDefs"],
-            row_data=json_data["DAY1:MCC"]["rowData"],
+            column_defs=json_data[f"DAY{self.day}:MCC"]["columnDefs"],
+            row_data=json_data[f"DAY{self.day}:MCC"]["rowData"],
         )
+        if self.day == 3:
+            return
         self.HCC1_grid = self.create_grid(
-            column_defs=json_data["DAY1:HCC1"]["columnDefs"],
-            row_data=json_data["DAY1:HCC1"]["rowData"],
+            column_defs=json_data[f"DAY{self.day}:HCC1"]["columnDefs"],
+            row_data=json_data[f"DAY{self.day}:HCC1"]["rowData"],
         )
         self.HCC2_grid = self.create_grid(
-            column_defs=json_data["DAY1:HCC2"]["columnDefs"],
-            row_data=json_data["DAY1:HCC2"]["rowData"],
-        )
+            column_defs=json_data[f"DAY{self.day}:HCC2"]["columnDefs"],
+            row_data=json_data[f"DAY{self.day}:HCC2"]["rowData"],
+        ).classes("hidden")
 
     def create_grid(self, column_defs: list[dict], row_data: list[dict]):
         """
@@ -135,6 +140,10 @@ class GridEventHandler:
             self.HCC2_grid.run_grid_method(
                 "setGridOption", "rowData", new_data["DAY1:HCC2"]["rowData"]
             )
+            if len(row_data)>0:
+                self.HCC2_grid.classes(remove="hidden")
+            else:
+                self.HCC2_grid.classes(add="hidden")
             self.update_grid_height(self.HCC2_grid, row_data)
 
     def create_click_handler(self, grid: ui.aggrid):

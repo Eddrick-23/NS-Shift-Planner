@@ -74,6 +74,8 @@ class GridHandler:
 
     def get_names(self):
         return self.names.copy()
+    def get_hours(self):
+        return self.hours.copy()
 
     def name_exists(self, name):
         return name in self.names

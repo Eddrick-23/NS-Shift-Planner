@@ -31,7 +31,14 @@ def create_help_button():
 
         ---
 
-        ### 3)How do I save my work?
+        ### 3) Where is the HCC2 Grid?
+        
+        The HCC2 grid is automatically hidden when the grid is empty. <br>
+        It will be displayed when a name is allocated to it.
+
+        ---
+
+        ### 4)How do I save my work?
 
         Your changes are automatically saved periodically.
 
@@ -42,7 +49,7 @@ def create_help_button():
 
         ---
 
-        ### 4) How do I upload my work?
+        ### 5) How do I upload my work?
 
         To upload:
 
@@ -74,3 +81,4 @@ def create_keybinds_button():
 
                 """).classes("text-sm text-gray-800")
     ui.button(icon="keyboard", on_click=popup.open).props("fab")
+

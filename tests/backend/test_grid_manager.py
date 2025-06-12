@@ -42,6 +42,43 @@ def manager_with_grid_with_name(test_manager, handler_factory, request):
     return test_manager
 
 
+@pytest.fixture
+def manager_all_grid_with_name(test_manager, handler_factory):
+    TEST_NAMES = [
+        "TEST_D1_MCC",
+        "TEST_D1_HCC1",
+        "TEST_D1_HCC2",
+        "TEST_D2_MCC",
+        "TEST_D2_HCC1",
+        "TEST_D2_HCC2",
+        "TEST_D3_MCC",
+    ]
+    handler1 = handler_factory(location="MCC", day=1)
+    handler2 = handler_factory(location="HCC1", day=1)
+    handler3 = handler_factory(location="HCC2", day=1)
+    handler4 = handler_factory(location="MCC", day=1)
+    handler5 = handler_factory(location="HCC1", day=2)
+    handler6 = handler_factory(location="HCC2", day=2)
+    handler7 = handler_factory(location="MCC", day=3)
+    handler1.add_name(TEST_NAMES[0])
+    handler2.add_name(TEST_NAMES[1])
+    handler3.add_name(TEST_NAMES[2])
+    handler4.add_name(TEST_NAMES[3])
+    handler5.add_name(TEST_NAMES[4])
+    handler6.add_name(TEST_NAMES[5])
+    handler7.add_name(TEST_NAMES[6])
+    test_manager.all_grids[f"DAY{1}:MCC"] = handler1
+    test_manager.all_grids[f"DAY{1}:HCC1"] = handler2
+    test_manager.all_grids[f"DAY{1}:HCC2"] = handler3
+    test_manager.all_grids[f"DAY{2}:MCC"] = handler4
+    test_manager.all_grids[f"DAY{2}:HCC1"] = handler5
+    test_manager.all_grids[f"DAY{2}:HCC2"] = handler6
+    test_manager.all_grids[f"DAY{3}:MCC"] = handler7
+    for i in range(1, 4):
+        test_manager.update_existing_names(i)
+    return test_manager
+
+
 def test_class_init(test_manager: "GridManager"):
     grid_handlers = test_manager.all_grids
 
@@ -262,7 +299,7 @@ def test_update_existing_names_day_1(manager_with_grid_with_name: "GridManager")
     manager = manager_with_grid_with_name
     assert manager.existing_names[f"DAY{day}"] == set()
     manager.update_existing_names(day)
-    original = manager.existing_names[f"DAY{day}"] 
+    original = manager.existing_names[f"DAY{day}"]
     assert len(original) == 4
     manager.all_grids[f"DAY{day}:MCC"].add_name("TEST_MCC")
     manager.all_grids[f"DAY{day}:HCC1"].add_name("TEST_HCC1")
@@ -276,8 +313,6 @@ def test_update_existing_names_day_1(manager_with_grid_with_name: "GridManager")
     manager.update_existing_names(day)
     after_removing = manager.existing_names[f"DAY{day}"]
     assert len(after_removing) == 4
-
-
 
 
 @pytest.mark.parametrize("manager_with_grid_with_name", [2], indirect=True)
@@ -286,7 +321,7 @@ def test_existing_names_day_2(manager_with_grid_with_name: "GridManager"):
     manager = manager_with_grid_with_name
     assert manager.existing_names[f"DAY{day}"] == set()
     manager.update_existing_names(day)
-    original = manager.existing_names[f"DAY{day}"] 
+    original = manager.existing_names[f"DAY{day}"]
     assert len(original) == 4
     manager.all_grids[f"DAY{day}:MCC"].add_name("TEST_MCC")
     manager.all_grids[f"DAY{day}:HCC1"].add_name("TEST_HCC1")
@@ -301,13 +336,14 @@ def test_existing_names_day_2(manager_with_grid_with_name: "GridManager"):
     after_removing = manager.existing_names[f"DAY{day}"]
     assert len(after_removing) == 4
 
+
 @pytest.mark.parametrize("manager_with_grid_with_name", [3], indirect=True)
-def test_update_existing_names_day_3(manager_with_grid_with_name:"GridManager"):
+def test_update_existing_names_day_3(manager_with_grid_with_name: "GridManager"):
     day = 3
     manager = manager_with_grid_with_name
     assert manager.existing_names[f"DAY{day}"] == set()
     manager.update_existing_names(day)
-    original = manager.existing_names[f"DAY{day}"] 
+    original = manager.existing_names[f"DAY{day}"]
     assert len(original) == 4
     manager.all_grids[f"DAY{day}:MCC"].add_name("TEST_ADD")
     manager.update_existing_names(day)
@@ -319,3 +355,26 @@ def test_update_existing_names_day_3(manager_with_grid_with_name:"GridManager"):
     assert "TEST_ADD" not in after_removing
 
 
+def test_get_all_hours(manager_all_grid_with_name: "GridManager"):
+    manager = manager_all_grid_with_name
+    grid_handler_name_map = {
+        "DAY1:MCC": "TEST_D1_MCC",
+        "DAY1:HCC1": "TEST_D1_HCC1",
+        "DAY1:HCC2": "TEST_D1_HCC2",
+        "DAY2:MCC": "TEST_D2_MCC",
+        "DAY2:HCC1": "TEST_D2_HCC1",
+        "DAY2:HCC2": "TEST_D2_HCC2",
+        "DAY3:MCC": "TEST_D3_MCC",
+    }
+    for key,name in grid_handler_name_map.items():
+        grid_handler = manager.all_grids[key]
+        grid_handler = cast(GridHandler,grid_handler)
+        time_block_1 = "12:00"
+        time_block_2 = "12:30"
+        if grid_handler.day == 3:
+            time_block_1 = "00:00"
+            time_block_2 = "00:30"
+        grid_handler.allocate_shift(location=grid_handler.location, time_block=time_block_1,name=name)
+        grid_handler.allocate_shift(location=grid_handler.location, time_block=time_block_2,name=name)
+    for hour_list in manager.get_all_hours().values():
+        assert sum(hour_list) == 1.0

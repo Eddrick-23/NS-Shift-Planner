@@ -41,6 +41,7 @@ class ControlPanelHandler:
                 "DAY1:HCC2": "DAY1:HCC2",
                 "DAY2:MCC": "DAY2:MCC",
                 "DAY2:HCC1": "DAY2:HCC1",
+                "DAY2:HCC2": "DAY2:HCC2",
                 "DAY3:MCC": "NIGHT DUTY",
             }
 
