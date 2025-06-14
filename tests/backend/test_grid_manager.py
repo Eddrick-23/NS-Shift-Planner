@@ -100,7 +100,6 @@ def test_class_init(test_manager: "GridManager"):
 
     assert expected_configs == set()
 
-
 def test_format_keys_join_time_block_one_dataframe(test_manager, handler_factory):
     handler = handler_factory(location="MCC", day=3)
     handler = cast(GridHandler, handler)
@@ -114,7 +113,9 @@ def test_format_keys_join_time_block_one_dataframe(test_manager, handler_factory
     handler.allocate_shift("MCC", "06:00", "TEST2")
     handler.allocate_shift("MCC", "06:30", "TEST2")
 
-    blocks_to_remove = test_manager.format_keys(handler.data)
+    blocks_to_remove = test_manager.format_keys(
+        test_manager.HALF_DAY_KEY_MAP[3], handler.data
+    )
 
     for time_block in blocks_to_remove:  # every 1h block can be combined
         assert ":00" not in time_block
@@ -135,7 +136,9 @@ def test_format_keys_cannot_join_time_block_one_dataframe(
     handler.allocate_shift("MCC", "06:30", "TEST2")
     handler.allocate_shift("MCC", "06:30", "TEST3")
 
-    blocks_to_remove = test_manager.format_keys(handler.data)
+    blocks_to_remove = test_manager.format_keys(
+        test_manager.HALF_DAY_KEY_MAP[3], handler.bit_mask
+    )
 
     assert "22:30" not in blocks_to_remove
     assert "06:30" not in blocks_to_remove
@@ -187,14 +190,18 @@ def test_format_keys_join_time_block(
     handler3.allocate_shift(location=allocate_loc3, time_block="17:00", name="TEST3")
     handler3.allocate_shift(location=allocate_loc3, time_block="17:30", name="TEST3")
 
-    blocks_to_remove = test_manager.format_keys(handler1.data, handler2.data)
+    blocks_to_remove = test_manager.format_keys(
+        test_manager.HALF_DAY_KEY_MAP[day],
+        handler1.bit_mask,
+        handler2.bit_mask,
+        handler3.bit_mask,
+    )
 
     total_1h_blocks = len(handler1.data) / 2
     assert len(blocks_to_remove) == total_1h_blocks
 
     for time_block in blocks_to_remove:
         assert ":00" not in time_block
-
 
 @pytest.mark.parametrize(
     "day, allocate_loc1,allocate_loc2, allocate_loc3",
@@ -228,7 +235,10 @@ def test_format_keys_join_time_block_multiple_names(
     handler3.allocate_shift(location=allocate_loc3, time_block="18:30", name="TEST3_3")
 
     blocks_to_remove = test_manager.format_keys(
-        handler1.data, handler2.data, handler3.data
+        test_manager.HALF_DAY_KEY_MAP[day],
+        handler1.bit_mask,
+        handler2.bit_mask,
+        handler3.bit_mask,
     )
 
     total_1h_blocks = len(handler1.data) / 2
@@ -270,7 +280,10 @@ def test_format_keys_cannot_join_time_block(
     handler3.allocate_shift(location=allocate_loc3, time_block="18:30", name="TEST3_3")
 
     blocks_to_remove = test_manager.format_keys(
-        handler1.data, handler2.data, handler3.data
+        test_manager.HALF_DAY_KEY_MAP[day],
+        handler1.bit_mask,
+        handler2.bit_mask,
+        handler3.bit_mask,
     )
 
     assert "17:30" not in blocks_to_remove
@@ -366,15 +379,19 @@ def test_get_all_hours(manager_all_grid_with_name: "GridManager"):
         "DAY2:HCC2": "TEST_D2_HCC2",
         "DAY3:MCC": "TEST_D3_MCC",
     }
-    for key,name in grid_handler_name_map.items():
+    for key, name in grid_handler_name_map.items():
         grid_handler = manager.all_grids[key]
-        grid_handler = cast(GridHandler,grid_handler)
+        grid_handler = cast(GridHandler, grid_handler)
         time_block_1 = "12:00"
         time_block_2 = "12:30"
         if grid_handler.day == 3:
             time_block_1 = "00:00"
             time_block_2 = "00:30"
-        grid_handler.allocate_shift(location=grid_handler.location, time_block=time_block_1,name=name)
-        grid_handler.allocate_shift(location=grid_handler.location, time_block=time_block_2,name=name)
+        grid_handler.allocate_shift(
+            location=grid_handler.location, time_block=time_block_1, name=name
+        )
+        grid_handler.allocate_shift(
+            location=grid_handler.location, time_block=time_block_2, name=name
+        )
     for hour_list in manager.get_all_hours().values():
         assert sum(hour_list) == 1.0

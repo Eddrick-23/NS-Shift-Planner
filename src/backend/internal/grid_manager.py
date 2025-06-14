@@ -1,10 +1,22 @@
+import pandas as pd
+from bitarray import bitarray
 from src.backend.internal.grid_handler import GridHandler
+import src.backend.internal.half_time_blocks as htb
 
 
 class GridManager:
     """
     Manages all GridHandler Instances
     """
+
+    HALF_DAY_KEY_MAP = {
+        1: htb.DAY_1_HALF_BLOCKS,
+        2: htb.DAY_2_HALF_BLOCKS,
+        3: htb.DAY_3_HALF_BLOCKS,
+    }
+    HALF_DAY_1 = htb.DAY_1_HALF_BLOCKS
+    HALF_DAY_2 = htb.DAY_2_HALF_BLOCKS
+    HALF_DAY_3 = htb.DAY_3_HALF_BLOCKS
 
     def __init__(self):
         self.all_grids = {}
@@ -26,21 +38,25 @@ class GridManager:
                     location=location, day=i
                 )
 
-    def format_keys(self, df1, df2=None, df3=None) -> list[str]:
+    def format_keys(
+        self,
+        reference_time_blocks: list[str],
+        bit_mask_1: bitarray,
+        bit_mask_2: bitarray = None,
+        bit_mask_3: bitarray = None,
+    ) -> list[str]:
         """
         Aligns timeblocks across 3 dataframes based on identical scheduling.
 
-        This function reads two pandas DataFrames representing timeblock schedules
+        This function reads up to 3 bitsets representing whether two 30 min time block pairs can be joined,
         and returns a list of formatted time keys and a corresponding list indicating
         whether consecutive blocks can be joined.
 
-        Two consecutive timeblocks can be joined if, for all columns except "DAY" and "Time",
-        their values are either both empty or exactly the same (i.e., allocated to the same person).
 
         Args:
-            df1 (pd.DataFrame): The first schedule dataframe.
-            df2 (pd.DataFrame): The second schedule dataframe. Can be None.
-            df3 (pd.DataFrame): The third schedule dataframe. Can be None.
+            df1 (bitarray): The first bitarray
+            df2 (bitarray): The second bitarray. Can be None.
+            df3 (bitarray): The third bitarray. Can be None.
 
 
         Returns:
@@ -48,28 +64,16 @@ class GridManager:
                 - each element is a time block that can be combined to a 1h block (e.g. "08:30", can be combined with "08:00")
                 - the elements will always be the second half of the hour "xx:30"
         """
-        joined_df = df1
-        if df2 is not None:
-            joined_df = joined_df.merge(df2)
-        if df3 is not None:
-            joined_df = joined_df.merge(df3)
         blocks_to_remove = []
+        result_mask = bit_mask_1.copy()
+        if bit_mask_2 is not None:
+            result_mask &= bit_mask_2
+        if bit_mask_3 is not None:
+            result_mask &= bit_mask_3
 
-        # iterate through pairs of rows
-        for i in range(0, len(joined_df), 2):
-            rows = joined_df.iloc[i : i + 2]
-            # check if every row contains identical values
-            can_join = True
-            for c in rows.columns[2:]:
-                v1, v2 = rows[c].iloc[0], rows[c].iloc[1]
-
-                if v1 != v2:
-                    can_join = False
-                    break
-            if can_join:
-                blocks_to_remove.append(
-                    rows.Time.iloc[1]
-                )  # slice string for HH:MM format
+        for block, remove in zip(reference_time_blocks, result_mask):
+            if remove:
+                blocks_to_remove.append(block)
 
         return blocks_to_remove
 
@@ -118,6 +122,9 @@ class GridManager:
 
 if __name__ == "__main__":
     test = GridManager()
-    test.setup_grid_handlers()
 
-    print(len(test.all_grids))
+    df1 = test.all_grids["DAY1:MCC"].data
+    df2 = test.all_grids["DAY1:HCC1"].data
+    df3 = test.all_grids["DAY1:HCC2"].data
+    result = test.format_keys_v2(df1, df2, df3)
+    print(result)

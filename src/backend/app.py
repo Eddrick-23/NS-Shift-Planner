@@ -69,7 +69,6 @@ class AllocateShiftRequest(AddOrRemoveRequest):
 
 #     return {"message": "Data uploaded successfully"}
 
-
 @app.post("/grid/")  # get all grid data for a specified day
 async def get_grid(
     request: FetchGridRequest, manager: GridManager = Depends(get_manager)
@@ -82,10 +81,10 @@ async def get_grid(
         if f"DAY{day}" not in key:
             continue
         num = len(handlers) + 1
-        handlers[f"df{num}"] = handler.data
+        handlers[f"bit_mask_{num}"] = handler.bit_mask
 
     # format the keys
-    blocks_to_remove = manager.format_keys(**handlers)
+    blocks_to_remove = manager.format_keys(manager.HALF_DAY_KEY_MAP[day],**handlers)
 
     # get the formatted dataframe in aggrid format
     for key, handler in manager.all_grids.items():

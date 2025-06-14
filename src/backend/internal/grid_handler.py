@@ -1,6 +1,9 @@
 import pandas as pd
+import numpy as np
 from typing import Literal
 import logging
+from bitarray import bitarray
+import src.backend.internal.half_time_blocks as htb
 
 
 class GridHandler:
@@ -35,6 +38,7 @@ class GridHandler:
             self.load_data()
         else:
             self.data = data
+        self.bit_mask = self.create_bit_mask(len(self.data) // 2)
 
     def load_data(self):
         """
@@ -44,6 +48,70 @@ class GridHandler:
         df = df[df["DAY"] == self.day]
         df = df.reset_index(drop=True)
         self.data = df
+
+    def create_bit_mask(self, size: int):
+        """
+        Creates a bit mask with specified size.
+        - This mask tracks which pairs of time slots can be joined for use in key formatting
+        - All bits are initially flipped to 1
+        - Flipping the bit to 0 means that 1h block cannot be joined
+        Args:
+            size(int): size of bit mask to create
+        """
+        mask = bitarray(size)
+        mask.setall(1)
+        return mask
+
+    def update_bit_mask(self, time_block: str):
+        """
+        Update bit mask for a specified time block
+        - This method is called after allocating/deallocating a shift
+        - Checks time block pair if block can be joined
+        - Sets bit to 0 if pair cannot be joined
+        - Sets bit to 1 if pair can be joined
+
+        Args:
+            time_block (str): time_block to check e.g. "08:00","12:30"
+        """
+        first_slot = None
+        second_slot = None
+        if ":30" in time_block:
+            second_slot = time_block
+            first_slot = time_block[:3] + "00"
+        else:
+            first_slot = time_block
+            second_slot = time_block[:3] + "30"
+
+        bit_value = 1
+        if not self._check_can_join_block(first_slot, second_slot):
+            bit_value = 0
+        index = (int(first_slot[:2]) - htb.DAY_FIRST_VAL[self.day]) % 24
+        self._set_bit(index, bit_value)
+
+    def _check_can_join_block(self, first_slot: str, second_slot: str) -> bool:
+        """
+        Checks if two specified time slots can be joined
+        Args:
+            first_slot(str): First time slot ending with ":00"
+            second_slot(str): Second time slot ending with ":30"
+        """
+        first_slot_data = self.data.loc[self.data.Time == first_slot].to_numpy()[0][2:]
+        second_slot_data = self.data.loc[self.data.Time == second_slot].to_numpy()[0][
+            2:
+        ]
+        # print(first_slot,second_slot)
+        # print(self.data.loc[self.data.Time==first_slot].to_numpy())
+        return np.array_equal(first_slot_data, second_slot_data)
+
+    def _set_bit(self, idx: int, value: Literal[0, 1]):
+        """
+        Set the bit value in the bitmask at a specified index position
+
+        Args:
+            idx(int): The index postion of the bit to flip
+            value(int[0,1]): The bit value
+        """
+        self.bit_mask[idx] = value
 
     def set_data(self, data):
         """
@@ -74,6 +142,7 @@ class GridHandler:
 
     def get_names(self):
         return self.names.copy()
+
     def get_hours(self):
         return self.hours.copy()
 
@@ -222,6 +291,7 @@ class GridHandler:
         elif allocated and final_location == "0":
             self.hours[name] -= 0.5
         self.data.loc[(self.data.Time == time_block), name.upper()] = final_location
+        self.update_bit_mask(time_block)
 
     def _resolve_location(
         self, new_location: str, time_block: str, name: str
@@ -365,7 +435,7 @@ class GridHandler:
         cell_class_rules = {
             "bg-white text-white": 'x=="0"',
             "bg-green text-green": f'x=="{self.location}"',
-            "bg-green text-black": f'x != 0 && x !=="{self.location}"'
+            "bg-green text-black": f'x != 0 && x !=="{self.location}"',
         }
         for i in range(1, len(column_defs)):
             data = column_defs[i]

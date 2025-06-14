@@ -357,6 +357,29 @@ def test_allocate_shift_day_3(handler_factory):
     assert handler.get_shift_location(time_block=TIME_BLOCK2, name=NAME) == "MCC"
 
 
+@pytest.mark.parametrize(
+    "first_half,second_half",
+    [("08:00", "08:30"), ("12:00", "12:30"), ("20:00", "20:30")],
+)
+def test_update_bit_mask(grid_with_names, first_half, second_half):
+    index = (int(first_half[:2]) - 7) % 24
+
+    grid_with_names.allocate_shift("MCC", first_half, "TEST")
+    grid_with_names.allocate_shift("MCC", first_half, "HELLO")
+    assert grid_with_names.bit_mask[index] == 0
+    grid_with_names.allocate_shift("MCC", first_half, "TEST")
+    assert grid_with_names.bit_mask[index] == 0
+    grid_with_names.allocate_shift("MCC", first_half, "HELLO")
+    assert grid_with_names.bit_mask[index] == 1
+
+    # test multi name allocated
+    grid_with_names.allocate_shift("MCC", first_half, "TEST")
+    grid_with_names.allocate_shift("MCC", first_half, "HELLO")
+    grid_with_names.allocate_shift("MCC", second_half, "TEST")
+    grid_with_names.allocate_shift("MCC", second_half, "HELLO")
+    assert grid_with_names.bit_mask[1] == 1
+
+
 def generate_location_day_combinations():
     LOCATION = ["MCC", "HCC1", "HCC2"]
     DAY = [1, 2]
@@ -448,5 +471,4 @@ def test_df_to_aggrid_format(handler_factory):
     result = handler.generate_formatted_dataframe(blocks_to_remove)
 
     aggrid_format = handler.df_to_aggrid_format(result)
-
     print(aggrid_format)
