@@ -121,6 +121,7 @@ async def add_name(
         )
     grid_handler.add_name(name)
     grid_manager.update_existing_names(day)
+    grid_manager.update_hours(name, target_grid)
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
         content={"detail": f"{name} added to {target_grid}"},
@@ -143,6 +144,7 @@ async def remove_name(
         )
     grid_handler.remove_name(name)
     manager.update_existing_names(day)
+    manager.update_hours(name, target_grid)
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,
@@ -188,6 +190,7 @@ async def allocate_shift(
         second_half = time_block[:-2] + "30"
         print(f"allocate_shift:{location, second_half, name}")
         grid_handler.allocate_shift(location, second_half, name)
+    manager.update_hours(name, target_grid)
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,
@@ -195,3 +198,37 @@ async def allocate_shift(
             "detail": f"Allocated: {target_grid},{name},{time_block},{allocation_size},{location}"
         },
     )
+
+
+@app.get("/hours/")
+async def get_all_hours(manager: GridManager = Depends(get_manager)):
+    response = {
+        "columnDefs": [
+            {
+                "headerName": "Name",
+                "field": "Name",
+                "width": 150,
+                "suppressSizeToFit": True,
+            },
+            {
+                "headerName": "Day 1",
+                "field": "Day 1",
+                "flex": 1,
+                "resizable": False,
+            },
+            {
+                "headerName": "Day 2",
+                "field": "Day 2",
+                "flex": 1,
+                "resizable": False,
+            },
+            {
+                "headerName": "Day 3",
+                "field": "Day 3",
+                "flex": 1,
+                "resizable": False,
+            },
+        ],
+        "rowData": manager.get_all_hours(),
+    }
+    return response

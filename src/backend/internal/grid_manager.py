@@ -1,5 +1,6 @@
 import pandas as pd
 from bitarray import bitarray
+from typing import cast
 from src.backend.internal.grid_handler import GridHandler
 import src.backend.internal.time_blocks as htb
 
@@ -13,6 +14,7 @@ class GridManager:
         self.all_grids = {}
         self.setup_grid_handlers()
         self.existing_names = {"DAY1": set(), "DAY2": set(), "DAY3": set()}
+        self.all_hours = {}
 
     def setup_grid_handlers(self):
         """
@@ -93,22 +95,46 @@ class GridManager:
         """
         return name in self.existing_names[f"DAY{day}"]
 
-    def get_all_hours(self) -> dict:
+    def get_all_hours(self) -> list[dict]:
         """
-        Compute the total hours for each person across all grids
+        Return data from all_hours attribute as rowData for aggrid
         """
-        hour_data = {}
-        for name_set in self.existing_names.values():
-            for name in name_set:
-                if name not in hour_data:
-                    hour_data[name] = [0, 0, 0]
-        for grid_handler in self.all_grids.values():
-            hours = grid_handler.get_hours()
+        row_data = []
+        for data in self.all_hours.values():
+            row_data.append(data)
 
-            for name, hours in hours.items():
-                hour_data[name][grid_handler.day - 1] += hours
+        return row_data
 
-        return hour_data
+    def update_hours(self, name: str, target_grid: str):
+        """
+        Update hour data for a specified name and target_grid
+        - This method is called when making changes to underlying grid handler for incremental update
+        - The self.all_hours attribute is updated
+        """
+
+        def __update_day_hours(day: int, name: str, new_hours):
+            key = f"Day {day}"
+            self.all_hours[name][key] = new_hours
+
+        handler = self.all_grids[target_grid]
+        handler = cast(GridHandler, handler)
+        name_exists = False
+        for names in self.existing_names.values():
+            if name in names:
+                name_exists=True
+                break
+        if not name_exists:
+            self.all_hours.pop(name,None)
+            return
+        if not handler.name_exists(name):  # name has been removed
+            __update_day_hours(handler.day, name, 0)
+            return
+        if name not in self.all_hours:  # name has just been added
+            self.all_hours[name] = {"Name": name, "Day 1": 0, "Day 2": 0, "Day 3": 0}
+            return
+
+        hour_data = handler.get_hours()
+        __update_day_hours(handler.day, name, hour_data[name])
 
 
 if __name__ == "__main__":

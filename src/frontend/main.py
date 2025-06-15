@@ -2,6 +2,7 @@ from nicegui import ui
 from nicegui.events import KeyEventArguments
 from grid_event_handler import GridEventHandler
 from control_panel import ControlPanelHandler
+from hour_grid_handler import HourGridHandler
 from help_button import create_help_button,create_keybinds_button
 from css import custom_css
 
@@ -32,7 +33,10 @@ async def main_page():
     # Create a single event handler instance for all grids
     container1 = ui.column().classes("w-full gap-1")
     container2 = ui.column().classes("w-full gap-1")
-    container3 = ui.column().classes("w-full gap-1")
+    container3 = ui.row().classes("w-full flex-nowrap")
+    with container3:
+        container3_left = ui.column().classes("w-2/6 gap-1")
+        container3_right = ui.column().classes("w-4/6 gap-1")
 
     with container1:
         grid_handler_1 = GridEventHandler(day=1)
@@ -40,13 +44,22 @@ async def main_page():
     with container2:
         grid_handler_2 = GridEventHandler(day=2)
         await grid_handler_2.generate_grids()
-    with container3:
+    with container3_right:
         grid_handler_3 = GridEventHandler(day=3)
         await grid_handler_3.generate_grids()
+    with container3_left:
+        hour_grid_handler = HourGridHandler()
+        await hour_grid_handler.create_hour_grid()
 
+    grid_handler_1.add_hour_grid_handler(hour_grid_handler)
+    grid_handler_2.add_hour_grid_handler(hour_grid_handler)
+    grid_handler_3.add_hour_grid_handler(hour_grid_handler)
     control_panel_handler.add_grid_event_handler(grid_handler_1)
     control_panel_handler.add_grid_event_handler(grid_handler_2)
     control_panel_handler.add_grid_event_handler(grid_handler_3)
+    control_panel_handler.add_hour_grid_handler(hour_grid_handler)
+
+
     with ui.row().classes("fixed right-4 bottom-4"):
         create_keybinds_button()
         create_help_button() 

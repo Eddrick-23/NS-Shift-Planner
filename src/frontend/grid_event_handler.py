@@ -1,6 +1,7 @@
 import requests
 from nicegui import run, ui
 from nicegui.events import KeyEventArguments
+from hour_grid_handler import HourGridHandler
 
 class GridEventHandler:
     def __init__(self, day: int):
@@ -16,8 +17,6 @@ class GridEventHandler:
         self.HCC1_grid = None
         self.HCC2_grid = None
 
-        # hide hcc2 if empty
-        self.visible = False
 
         # Set up keyboard listener
         self.keyboard = ui.keyboard(on_key=self.handle_key, active=True)
@@ -101,6 +100,7 @@ class GridEventHandler:
                     body["allocation_size"] = "0.25"
         response = await run.io_bound(requests.post,self.ALLOCATE_SHIFT_URL, json=body)
         await self.update_grids()
+        await self.hour_grid_handler.update_hour_grid()
         if response.status_code != 200:
             ui.notify("Internal Server Error when allocating shift")
 
@@ -175,3 +175,10 @@ class GridEventHandler:
         calculated_rem_height = 4 + 1.75 * (max(0, num_rows - 1))
         # update style
         grid.style(f"height: {calculated_rem_height}rem")
+    
+    def add_hour_grid_handler(self,handler:HourGridHandler):
+        """
+        Add hour grid handler to this grid event handler
+        - Events that occur to this grid will trigger an update on the hour grid
+        """
+        self.hour_grid_handler = handler

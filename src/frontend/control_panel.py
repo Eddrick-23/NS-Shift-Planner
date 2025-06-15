@@ -2,6 +2,7 @@ from nicegui import run, ui
 import requests
 from typing import Literal
 from grid_event_handler import GridEventHandler
+from hour_grid_handler import HourGridHandler
 
 
 class ControlPanelHandler:
@@ -84,6 +85,11 @@ class ControlPanelHandler:
         Add a grid_event_handler instance so that control panel actions can update grids automatically
         """
         self.grid_event_handlers.append(grid_event_handler)
+    def add_hour_grid_handler(self, hour_grid_handler: HourGridHandler):
+        """
+        Add a hour_grid_handler instance so that control panel actions can update the hour grid automatically
+        """
+        self.hour_grid_handler = hour_grid_handler
 
     async def trigger_handler_update(self, target_grid: str):
         """
@@ -101,12 +107,12 @@ class ControlPanelHandler:
         else:  # NIGHT DUTY
             target_day = 3
 
+        await self.hour_grid_handler.update_hour_grid()
         # get target handler
         for grid_event_handler in self.grid_event_handlers:
             if grid_event_handler.day == target_day:
                 await grid_event_handler.update_grids()
                 return
-
     def set_radio_value(self, value: Literal["MCC", "HCC1", "HCC2"]):
         """
         Set radio button value. Mainly called for hot keys
