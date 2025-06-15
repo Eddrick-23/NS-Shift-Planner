@@ -3,7 +3,9 @@ from nicegui.events import KeyEventArguments
 from grid_event_handler import GridEventHandler
 from control_panel import ControlPanelHandler
 from help_button import create_help_button,create_keybinds_button
+from css import custom_css
 
+# Define custom CSS for borders
 
 def handle_key(e: KeyEventArguments, control_panel_handler: ControlPanelHandler):
     if e.modifiers.shift and e.action.keydown:
@@ -20,6 +22,8 @@ def handle_key(e: KeyEventArguments, control_panel_handler: ControlPanelHandler)
 
 @ui.page("/")
 async def main_page():
+    # Add the CSS to the page
+    ui.add_head_html(custom_css)
     # Control Panel
     control_panel_handler = ControlPanelHandler()
     ui.keyboard(on_key=lambda e: handle_key(e, control_panel_handler))

@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import firebase_admin
 from firebase_admin import credentials, firestore
 from src.backend.internal.grid_manager import GridManager, GridHandler
+import src.backend.internal.time_blocks as tb
 
 # Load .env to get credentials path
 load_dotenv()
@@ -69,6 +70,7 @@ class AllocateShiftRequest(AddOrRemoveRequest):
 
 #     return {"message": "Data uploaded successfully"}
 
+
 @app.post("/grid/")  # get all grid data for a specified day
 async def get_grid(
     request: FetchGridRequest, manager: GridManager = Depends(get_manager)
@@ -84,7 +86,7 @@ async def get_grid(
         handlers[f"bit_mask_{num}"] = handler.bit_mask
 
     # format the keys
-    blocks_to_remove = manager.format_keys(manager.HALF_DAY_KEY_MAP[day],**handlers)
+    blocks_to_remove = manager.format_keys(tb.HALF_DAY_BLOCK_MAP[day], **handlers)
 
     # get the formatted dataframe in aggrid format
     for key, handler in manager.all_grids.items():
@@ -104,10 +106,10 @@ async def add_name(
     target_grid = request.grid_name
     day = target_grid[3]
     name = request.name.upper()
-    if manager.name_exists(name,day):
+    if manager.name_exists(name, day):
         return JSONResponse(
             status_code=status.HTTP_200_OK,
-            content={"detail":f"{name} already exists in DAY:{day}"}
+            content={"detail": f"{name} already exists in DAY:{day}"},
         )
 
     grid_handler = manager.all_grids[target_grid]

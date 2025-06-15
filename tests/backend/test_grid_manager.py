@@ -3,6 +3,7 @@ from typing import cast
 import itertools
 from src.backend.internal.grid_manager import GridManager
 from src.backend.internal.grid_handler import GridHandler
+import src.backend.internal.time_blocks as tb
 
 
 @pytest.fixture
@@ -114,7 +115,7 @@ def test_format_keys_join_time_block_one_dataframe(test_manager, handler_factory
     handler.allocate_shift("MCC", "06:30", "TEST2")
 
     blocks_to_remove = test_manager.format_keys(
-        test_manager.HALF_DAY_KEY_MAP[3], handler.data
+        tb.HALF_DAY_BLOCK_MAP[3], handler.data
     )
 
     for time_block in blocks_to_remove:  # every 1h block can be combined
@@ -137,7 +138,7 @@ def test_format_keys_cannot_join_time_block_one_dataframe(
     handler.allocate_shift("MCC", "06:30", "TEST3")
 
     blocks_to_remove = test_manager.format_keys(
-        test_manager.HALF_DAY_KEY_MAP[3], handler.bit_mask
+        tb.HALF_DAY_BLOCK_MAP[3], handler.bit_mask
     )
 
     assert "22:30" not in blocks_to_remove
@@ -191,7 +192,7 @@ def test_format_keys_join_time_block(
     handler3.allocate_shift(location=allocate_loc3, time_block="17:30", name="TEST3")
 
     blocks_to_remove = test_manager.format_keys(
-        test_manager.HALF_DAY_KEY_MAP[day],
+        tb.HALF_DAY_BLOCK_MAP[day],
         handler1.bit_mask,
         handler2.bit_mask,
         handler3.bit_mask,
@@ -235,7 +236,7 @@ def test_format_keys_join_time_block_multiple_names(
     handler3.allocate_shift(location=allocate_loc3, time_block="18:30", name="TEST3_3")
 
     blocks_to_remove = test_manager.format_keys(
-        test_manager.HALF_DAY_KEY_MAP[day],
+        tb.HALF_DAY_BLOCK_MAP[day],
         handler1.bit_mask,
         handler2.bit_mask,
         handler3.bit_mask,
@@ -280,7 +281,7 @@ def test_format_keys_cannot_join_time_block(
     handler3.allocate_shift(location=allocate_loc3, time_block="18:30", name="TEST3_3")
 
     blocks_to_remove = test_manager.format_keys(
-        test_manager.HALF_DAY_KEY_MAP[day],
+        tb.HALF_DAY_BLOCK_MAP[day],
         handler1.bit_mask,
         handler2.bit_mask,
         handler3.bit_mask,

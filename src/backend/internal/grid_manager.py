@@ -1,22 +1,13 @@
 import pandas as pd
 from bitarray import bitarray
 from src.backend.internal.grid_handler import GridHandler
-import src.backend.internal.half_time_blocks as htb
+import src.backend.internal.time_blocks as htb
 
 
 class GridManager:
     """
     Manages all GridHandler Instances
     """
-
-    HALF_DAY_KEY_MAP = {
-        1: htb.DAY_1_HALF_BLOCKS,
-        2: htb.DAY_2_HALF_BLOCKS,
-        3: htb.DAY_3_HALF_BLOCKS,
-    }
-    HALF_DAY_1 = htb.DAY_1_HALF_BLOCKS
-    HALF_DAY_2 = htb.DAY_2_HALF_BLOCKS
-    HALF_DAY_3 = htb.DAY_3_HALF_BLOCKS
 
     def __init__(self):
         self.all_grids = {}

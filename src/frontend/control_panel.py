@@ -47,11 +47,11 @@ class ControlPanelHandler:
 
             # Store references to UI elements
             self.grid_option = ui.select(
-                label="Grid", options=grid_options, clearable=True
-            )
+                label="Grid", options=grid_options, clearable=True,
+            ).props("outlined")
             self.name_input = (
                 ui.input(label="Name").props("clearable").classes("flex-1")
-            )
+            ).props("outlined")
 
             with ui.button_group():
                 ui.button(icon="add", on_click=self.handle_add).classes(

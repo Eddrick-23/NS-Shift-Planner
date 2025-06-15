@@ -3,7 +3,7 @@ import numpy as np
 from typing import Literal
 import logging
 from bitarray import bitarray
-import src.backend.internal.half_time_blocks as htb
+import src.backend.internal.time_blocks as tb
 
 
 class GridHandler:
@@ -85,7 +85,7 @@ class GridHandler:
         bit_value = 1
         if not self._check_can_join_block(first_slot, second_slot):
             bit_value = 0
-        index = (int(first_slot[:2]) - htb.DAY_FIRST_VAL[self.day]) % 24
+        index = tb.HALF_DAY_BLOCK_MAP[self.day].index(second_slot)
         self._set_bit(index, bit_value)
 
     def _check_can_join_block(self, first_slot: str, second_slot: str) -> bool:

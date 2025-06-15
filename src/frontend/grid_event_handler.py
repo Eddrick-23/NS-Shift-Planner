@@ -2,7 +2,6 @@ import requests
 from nicegui import run, ui
 from nicegui.events import KeyEventArguments
 
-
 class GridEventHandler:
     def __init__(self, day: int):
         self.FETCH_GRID_DATA_URL = "http://localhost:8000/grid/"
