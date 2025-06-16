@@ -6,6 +6,7 @@ from hour_grid_handler import HourGridHandler
 
 
 class ControlPanelHandler:
+    INVALID_NAMES = ["MCC","HCC1","HCC2","0","TOTAL"]
     def __init__(self):
         self.radio_value = "MCC"
         self.radio_options = ["MCC", "HCC1", "HCC2"]
@@ -136,7 +137,7 @@ class ControlPanelHandler:
         if name == "":
             ui.notify("Enter a name")
             return
-        if name in ["MCC","HCC1","HCC2"]:
+        if name in self.INVALID_NAMES:
             ui.notify("Invalid name")
             return
         if target_grid is None:

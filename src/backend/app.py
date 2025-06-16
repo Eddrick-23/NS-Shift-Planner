@@ -76,17 +76,17 @@ async def get_grid(
     request: FetchGridRequest, manager: GridManager = Depends(get_manager)
 ):
     result = {}
-    handlers = {}
+    bit_masks = {}
     day = request.day
     # find the required handlers
     for key, handler in manager.all_grids.items():
         if f"DAY{day}" not in key:
             continue
-        num = len(handlers) + 1
-        handlers[f"bit_mask_{num}"] = handler.bit_mask
+        num = len(bit_masks) + 1
+        bit_masks[f"bit_mask_{num}"] = handler.bit_mask
 
     # format the keys
-    blocks_to_remove = manager.format_keys(tb.HALF_DAY_BLOCK_MAP[day], **handlers)
+    blocks_to_remove = manager.format_keys(tb.HALF_DAY_BLOCK_MAP[day], **bit_masks)
 
     # get the formatted dataframe in aggrid format
     for key, handler in manager.all_grids.items():
@@ -97,6 +97,20 @@ async def get_grid(
         aggrid_format = handler.df_to_aggrid_format(formatted_df)
         result[key] = aggrid_format
     return JSONResponse(status_code=status.HTTP_200_OK, content=result)
+
+@app.post("/grid/compressed")
+async def get_grid_compressed(request:FetchGridRequest, manager:GridManager=Depends(get_manager)):
+    day = request.day
+    if day != 3:
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"detail": "Call for day 3 grid only"})
+    handler = manager.all_grids["DAY3:MCC"]
+    handler = cast(GridHandler, handler)
+    blocks_to_remove = manager.format_keys(tb.HALF_DAY_BLOCK_MAP[day], handler.bit_mask)
+    formatted_df = handler.generate_formatted_dataframe(blocks_to_remove)
+    aggrid_format_compressed = handler.df_to_aggrid_compressed(formatted_df)
+
+    return JSONResponse(status_code=status.HTTP_200_OK, content=aggrid_format_compressed)
+
 
 
 @app.post("/grid/add/")
@@ -202,6 +216,7 @@ async def allocate_shift(
 
 @app.get("/hours/")
 async def get_all_hours(manager: GridManager = Depends(get_manager)):
+    row_data, pinned_row_data = manager.get_all_hours()
     response = {
         "columnDefs": [
             {
@@ -228,7 +243,14 @@ async def get_all_hours(manager: GridManager = Depends(get_manager)):
                 "flex": 1,
                 "resizable": False,
             },
+            {
+                "headerName": "Total",
+                "field": "Total",
+                "flex": 1,
+                "resizable": False,
+            },
         ],
-        "rowData": manager.get_all_hours(),
+        "rowData": row_data,
+        "pinned_bottom_row": pinned_row_data
     }
     return response

@@ -3,20 +3,22 @@ from nicegui import run, ui
 from nicegui.events import KeyEventArguments
 from hour_grid_handler import HourGridHandler
 
+
 class GridEventHandler:
     def __init__(self, day: int):
         self.FETCH_GRID_DATA_URL = "http://localhost:8000/grid/"
+        self.FETCH_COMPRESSED_GRID_DATA_URL = "http://localhost:8000/grid/compressed"
         self.ALLOCATE_SHIFT_URL = "http://localhost:8000/grid/allocate/"
         self.left_half = False
         self.right_half = False
         self.day = day
         self.active_location = "MCC"
+        self.clicks_enabled = True
 
         # set up grid instances
         self.MCC_grid = None
         self.HCC1_grid = None
         self.HCC2_grid = None
-
 
         # Set up keyboard listener
         self.keyboard = ui.keyboard(on_key=self.handle_key, active=True)
@@ -69,6 +71,9 @@ class GridEventHandler:
 
     async def handle_cell_click(self, event, grid: ui.aggrid):
         """Handle cell click events with modifier key detection"""
+        if not self.clicks_enabled:
+            ui.notify("Clicks are disabled")
+            return
         if event.args["value"] not in {"0", "MCC", "HCC1", "HCC2"}:
             return
         data = next(iter(event.args["data"].items()))
@@ -81,8 +86,8 @@ class GridEventHandler:
             "location": self.active_location,
             "time_block": time_block,
         }
-        #if time_block is :30 --> don't need to consider left or right half we force allocation size 0.75
-        #if time_block is :00 --> left half 0.25, right_half 0.75, full 1
+        # if time_block is :30 --> don't need to consider left or right half we force allocation size 0.75
+        # if time_block is :00 --> left half 0.25, right_half 0.75, full 1
         if ":30" in time_block:
             body["allocation_size"] = "0.75"
 
@@ -91,14 +96,14 @@ class GridEventHandler:
                 body["allocation_size"] = "0.25"
             elif self.right_half:
                 body["allocation_size"] = "0.75"
-            else: #normal click
+            else:  # normal click
                 second_half_time_block = time_block[:3] + "30"
-                #allocate full
+                # allocate full
                 if second_half_time_block not in event.args["data"]:
                     body["allocation_size"] = "1"
                 else:
                     body["allocation_size"] = "0.25"
-        response = await run.io_bound(requests.post,self.ALLOCATE_SHIFT_URL, json=body)
+        response = await run.io_bound(requests.post, self.ALLOCATE_SHIFT_URL, json=body)
         await self.update_grids()
         await self.hour_grid_handler.update_hour_grid()
         if response.status_code != 200:
@@ -133,13 +138,9 @@ class GridEventHandler:
                 new_data[f"DAY{self.day}:HCC2"]["columnDefs"],
                 new_data[f"DAY{self.day}:HCC2"]["rowData"],
             )
-            self.HCC2_grid.run_grid_method(
-                "setGridOption", "columnDefs", new_data["DAY1:HCC2"]["columnDefs"]
-            )
-            self.HCC2_grid.run_grid_method(
-                "setGridOption", "rowData", new_data["DAY1:HCC2"]["rowData"]
-            )
-            if len(row_data)>0:
+            self.HCC2_grid.run_grid_method("setGridOption", "columnDefs", column_defs)
+            self.HCC2_grid.run_grid_method("setGridOption", "rowData", row_data)
+            if len(row_data) > 0:
                 self.HCC2_grid.classes(remove="hidden")
             else:
                 self.HCC2_grid.classes(add="hidden")
@@ -175,10 +176,30 @@ class GridEventHandler:
         calculated_rem_height = 4 + 1.75 * (max(0, num_rows - 1))
         # update style
         grid.style(f"height: {calculated_rem_height}rem")
-    
-    def add_hour_grid_handler(self,handler:HourGridHandler):
+
+    def add_hour_grid_handler(self, handler: HourGridHandler):
         """
         Add hour grid handler to this grid event handler
         - Events that occur to this grid will trigger an update on the hour grid
         """
         self.hour_grid_handler = handler
+
+    async def compress_grid(self):
+        """
+        Change grid to compressed format
+        - Grid will not be editable in this state
+        - This is meant for day 3 grid only
+        - To be called by compress_grid_switch component
+        """
+        body = {"day": 3}
+        response = await run.io_bound(
+            requests.post, url=self.FETCH_COMPRESSED_GRID_DATA_URL, json=body
+        )
+        if response.status_code != 200:
+            ui.notify("Error in getting compressed grid data", type="negative")
+        data = response.json()
+        column_defs = data["columnDefs"]
+        row_data = data["rowData"]
+        self.MCC_grid.run_grid_method("setGridOption", "columnDefs", column_defs)
+        self.MCC_grid.run_grid_method("setGridOption", "rowData", row_data)
+        self.update_grid_height(self.MCC_grid, row_data)

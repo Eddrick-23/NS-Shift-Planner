@@ -16,6 +16,8 @@ class HourGridHandler:
             {
                 "columnDefs": data["columnDefs"],
                 "rowData": data["rowData"],
+                "pinnedBottomRowData": data["pinned_bottom_row"],
+                "domLayout": "autoHeight",
             }
         ).classes("w-full")
 
@@ -32,3 +34,4 @@ class HourGridHandler:
             return
         self.grid.run_grid_method("setGridOption", "columnDefs", new_data["columnDefs"])
         self.grid.run_grid_method("setGridOption", "rowData", new_data["rowData"])
+        self.grid.run_grid_method("setGridOption", "pinnedBottomRowData", new_data["pinned_bottom_row"])

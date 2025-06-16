@@ -1,8 +1,6 @@
-import pandas as pd
 from bitarray import bitarray
 from typing import cast
 from src.backend.internal.grid_handler import GridHandler
-import src.backend.internal.time_blocks as htb
 
 
 class GridManager:
@@ -14,7 +12,15 @@ class GridManager:
         self.all_grids = {}
         self.setup_grid_handlers()
         self.existing_names = {"DAY1": set(), "DAY2": set(), "DAY3": set()}
-        self.all_hours = {}
+        self.all_hours = {
+            "TOTAL": {
+                "Name": "TOTAL",
+                "Day 1": 0,
+                "Day 2": 0,
+                "Day 3": 0,
+                "Total": 0,
+            }
+        }
 
     def setup_grid_handlers(self):
         """
@@ -100,10 +106,14 @@ class GridManager:
         Return data from all_hours attribute as rowData for aggrid
         """
         row_data = []
+        pinned_row_data = []
         for data in self.all_hours.values():
-            row_data.append(data)
+            if data["Name"] == "TOTAL":
+                pinned_row_data.append(data)
+            else:
+                row_data.append(data)
 
-        return row_data
+        return row_data, pinned_row_data
 
     def update_hours(self, name: str, target_grid: str):
         """
@@ -114,34 +124,49 @@ class GridManager:
 
         def __update_day_hours(day: int, name: str, new_hours):
             key = f"Day {day}"
-            self.all_hours[name][key] = new_hours
+            name_hour_data = self.all_hours[name]
+            total_hour_data = self.all_hours["TOTAL"]
+            # update hours for that name and the overall total hours
+            total_hour_data[key] -= name_hour_data[key]
+            total_hour_data["Total"] -= name_hour_data[key]
+            name_hour_data["Total"] -= name_hour_data[key]
+            name_hour_data[key] = new_hours
+            total_hour_data[key] += name_hour_data[key]
+            total_hour_data["Total"] += name_hour_data[key]
+            name_hour_data["Total"] += name_hour_data[key]
 
         handler = self.all_grids[target_grid]
         handler = cast(GridHandler, handler)
         name_exists = False
         for names in self.existing_names.values():
             if name in names:
-                name_exists=True
+                name_exists = True
                 break
         if not name_exists:
-            self.all_hours.pop(name,None)
+            self.all_hours.pop(name, None)
             return
         if not handler.name_exists(name):  # name has been removed
             __update_day_hours(handler.day, name, 0)
             return
         if name not in self.all_hours:  # name has just been added
-            self.all_hours[name] = {"Name": name, "Day 1": 0, "Day 2": 0, "Day 3": 0}
+            self.all_hours[name] = {
+                "Name": name,
+                "Day 1": 0,
+                "Day 2": 0,
+                "Day 3": 0,
+                "Total": 0,
+            }
             return
 
         hour_data = handler.get_hours()
         __update_day_hours(handler.day, name, hour_data[name])
 
 
-if __name__ == "__main__":
-    test = GridManager()
+# if __name__ == "__main__":
+    # test = GridManager()
 
-    df1 = test.all_grids["DAY1:MCC"].data
-    df2 = test.all_grids["DAY1:HCC1"].data
-    df3 = test.all_grids["DAY1:HCC2"].data
-    result = test.format_keys_v2(df1, df2, df3)
-    print(result)
+    # df1 = test.all_grids["DAY1:MCC"].data
+    # df2 = test.all_grids["DAY1:HCC1"].data
+    # df3 = test.all_grids["DAY1:HCC2"].data
+    # result = test.format_keys_v2(df1, df2, df3)
+    # print(result)

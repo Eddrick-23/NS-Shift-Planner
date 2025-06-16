@@ -412,6 +412,8 @@ class GridHandler:
         """
         # Create column definitions (skip index if needed)
         column_defs = [{"headerName": col, "field": col} for col in df.columns]
+        if self.day == 3:
+            column_defs[0]["headerName"] = "NIGHT DUTY"
         # Add styling for first column
         self._style_columns(column_defs)
 
@@ -423,6 +425,65 @@ class GridHandler:
             "columnDefs": column_defs,
             "rowData": row_data,
         }
+    
+    def df_to_aggrid_compressed(self,df):
+        """
+        Converts dataframe to custom compressed format, that is aggrid compatible.
+        - Instead of displaying shift allocated by each name by row, the names are put under each time column if they are allocated for that shift
+        - This is called for DAY:3
+
+        Returns:
+            list[dict]:
+                list of dictionaries to be served as json data for frontend
+        """
+        column_defs = [{"headerName": col, "field":col} for col in df.columns[1:]]
+        column_defs = self._style_columns_compressed(column_defs)
+        col_data = {data["field"]:[] for data in column_defs}
+
+        row_data = df.to_dict(orient="records")
+        for row in row_data:
+            name = None
+            for k,v in row.items():
+                if v not in ["0","HCC1","MCC","HCC2"]:
+                    name = v
+                    continue
+                if v != "0":
+                    col_data[k].append(name)
+
+        formatted_row_data = []
+        #flatten the col_data dictionary
+        keep_formatting = True
+        while keep_formatting:
+            data = {}
+            for k,v in col_data.items():
+                if v == []:
+                    data[k] = "0"
+                else:
+                    value = v.pop(0)
+                    data[k] = value
+            if all(v == "0" for v in data.values()):
+                keep_formatting = False
+            else:
+                formatted_row_data.append(data)
+
+        return {
+            "columnDefs":column_defs,
+            "rowData":formatted_row_data
+        }
+    
+    def _style_columns_compressed(self,column_defs:list[dict]) -> list[dict]:
+        """
+        Inject data into column definitions for styling. (For compressed grid)
+        """
+        cell_class_rules = {
+            "bg-white text-white": 'x=="0"',
+        }
+        for i in range(len(column_defs)):
+            data = column_defs[i]
+            data["flex"] = 1
+            data["resizable"] = False
+            data["cellClassRules"] = cell_class_rules
+        return column_defs
 
     def _style_columns(self, column_defs: list[dict]) -> list[dict]:
         """

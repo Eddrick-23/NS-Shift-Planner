@@ -8,7 +8,7 @@ def create_help_button():
 
         ---
 
-        ### 1)How do I add or remove names?
+        ### 1) How do I add or remove names?
 
         To modify a grid, follow these steps:
 
@@ -18,7 +18,7 @@ def create_help_button():
 
         ---
 
-        ### 2)How do I allocate a shift?
+        ### 2) How do I allocate a shift?
 
         To allocate a shift:
 
@@ -38,7 +38,7 @@ def create_help_button():
 
         ---
 
-        ### 4)How do I save my work?
+        ### 4) How do I save my work?
 
         Your changes are automatically saved periodically.
 
@@ -60,6 +60,10 @@ def create_help_button():
         _Once uploaded, your data will be processed and integrated into the system._
 
         ---
+                    
+        ### 6) I cannot edit the Night Duty Grid when it is compressed
+        - Cell clicks are disabled in compressed view
+        - Switch back to the regular view to edit the grid
         """).classes("text-sm text-gray-800")
 
     ui.button(icon="help", on_click=popup.open).props("fab")
