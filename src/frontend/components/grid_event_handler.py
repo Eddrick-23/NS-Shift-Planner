@@ -1,7 +1,7 @@
 import requests
 from nicegui import run, ui
 from nicegui.events import KeyEventArguments
-from hour_grid_handler import HourGridHandler
+from src.frontend.components.hour_grid_handler import HourGridHandler
 
 
 class GridEventHandler:
@@ -14,6 +14,8 @@ class GridEventHandler:
         self.day = day
         self.active_location = "MCC"
         self.clicks_enabled = True
+        self.compress_switch = None
+        self.grid_compressed = False
 
         # set up grid instances
         self.MCC_grid = None
@@ -115,6 +117,9 @@ class GridEventHandler:
         """
 
         new_data = await self.fetch_grid_data()
+        self.clicks_enabled = True
+        if self.compress_switch is not None:
+            self.compress_switch.set_value(False)
 
         if self.MCC_grid is not None:
             column_defs, row_data = (
@@ -183,6 +188,12 @@ class GridEventHandler:
         - Events that occur to this grid will trigger an update on the hour grid
         """
         self.hour_grid_handler = handler
+    
+    def add_compress_switch(self,switch:ui.switch):
+        """
+        Add switch handler to this grid
+        """
+        self.compress_switch = switch
 
     async def compress_grid(self):
         """
@@ -203,3 +214,4 @@ class GridEventHandler:
         self.MCC_grid.run_grid_method("setGridOption", "columnDefs", column_defs)
         self.MCC_grid.run_grid_method("setGridOption", "rowData", row_data)
         self.update_grid_height(self.MCC_grid, row_data)
+        self.grid_compressed = True

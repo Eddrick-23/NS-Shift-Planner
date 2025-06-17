@@ -1,3 +1,4 @@
+import io
 import pandas as pd
 import numpy as np
 from typing import Literal
@@ -7,17 +8,10 @@ import src.backend.internal.time_blocks as tb
 
 
 class GridHandler:
-    """
-    custom batabase for streamlit front end.
-    Database stores allocated shift for each person by day
-    """
-
     def __init__(
         self,
         location: Literal["MCC", "HCC1", "HCC2"],
         day: int,
-        use_default=True,
-        data=None,
     ):
         """
         Initializes the daily grid for a specific location and day.
@@ -34,10 +28,7 @@ class GridHandler:
         self.identifier = f"{self.day},{self.location} GridHanlder"
         self.logger = logging.getLogger(__name__)
         self.hours = {}  # stores hour data in name:hour format
-        if use_default:
-            self.load_data()
-        else:
-            self.data = data
+        self.load_data()
         self.bit_mask = self.create_bit_mask(len(self.data) // 2)
 
     def load_data(self):
@@ -425,8 +416,8 @@ class GridHandler:
             "columnDefs": column_defs,
             "rowData": row_data,
         }
-    
-    def df_to_aggrid_compressed(self,df):
+
+    def df_to_aggrid_compressed(self, df):
         """
         Converts dataframe to custom compressed format, that is aggrid compatible.
         - Instead of displaying shift allocated by each name by row, the names are put under each time column if they are allocated for that shift
@@ -436,26 +427,26 @@ class GridHandler:
             list[dict]:
                 list of dictionaries to be served as json data for frontend
         """
-        column_defs = [{"headerName": col, "field":col} for col in df.columns[1:]]
+        column_defs = [{"headerName": col, "field": col} for col in df.columns[1:]]
         column_defs = self._style_columns_compressed(column_defs)
-        col_data = {data["field"]:[] for data in column_defs}
+        col_data = {data["field"]: [] for data in column_defs}
 
         row_data = df.to_dict(orient="records")
         for row in row_data:
             name = None
-            for k,v in row.items():
-                if v not in ["0","HCC1","MCC","HCC2"]:
+            for k, v in row.items():
+                if v not in ["0", "HCC1", "MCC", "HCC2"]:
                     name = v
                     continue
                 if v != "0":
                     col_data[k].append(name)
 
         formatted_row_data = []
-        #flatten the col_data dictionary
+        # flatten the col_data dictionary
         keep_formatting = True
         while keep_formatting:
             data = {}
-            for k,v in col_data.items():
+            for k, v in col_data.items():
                 if v == []:
                     data[k] = "0"
                 else:
@@ -466,12 +457,9 @@ class GridHandler:
             else:
                 formatted_row_data.append(data)
 
-        return {
-            "columnDefs":column_defs,
-            "rowData":formatted_row_data
-        }
-    
-    def _style_columns_compressed(self,column_defs:list[dict]) -> list[dict]:
+        return {"columnDefs": column_defs, "rowData": formatted_row_data}
+
+    def _style_columns_compressed(self, column_defs: list[dict]) -> list[dict]:
         """
         Inject data into column definitions for styling. (For compressed grid)
         """
@@ -506,11 +494,58 @@ class GridHandler:
             data["cellClassRules"] = cell_class_rules
         return column_defs
 
-    def store_json(self):
+    def serialise_for_storage(self):
         """
-        Convert dataframe to json for storage in database
-        """
-        data = self.data.copy()
-        json_data = data.to_json()
+        Serialise GridHandler instance for storage.
 
-        return json_data
+        Returns:
+            Tuple containing:
+                - metadata (dict): JSON-serialisable dictionary with class attributes
+                - dataframe_bytes (bytes): Dataframe serialised as parquet bytes
+        """
+        metadata = {
+            'names': list(self.names),
+            'location': self.location,
+            'day':self.day,
+            'identifier':self.identifier,
+            'hours':self.hours,
+            'bit_mask': self.bit_mask.to01()
+        }
+        buffer = io.BytesIO()
+        self.data.to_parquet(buffer, engine="pyarrow")
+        dataframe_bytes = buffer.getvalue()
+
+        return metadata,dataframe_bytes
+    @classmethod
+    def deserialise_from_storage(cls,metadata:dict[str,any], dataframe_bytes:bytes) -> "GridHandler":
+        """
+        Reconstruct GridHandler instance from serialized data.
+        
+        Args:
+            metadata: Dictionary containing class attributes
+            dataframe_bytes: DataFrame serialized as parquet bytes
+            
+        Returns:
+            GridHandler: Reconstructed instance
+        """
+        #reconstruct dataframe
+        buffer = io.BytesIO(dataframe_bytes)
+        dataframe = pd.read_parquet(buffer, engine="pyarrow")
+        
+        #create new instance without calling __init__
+        instance = cls.__new__cls(cls)
+        instance.names = set(metadata["names"])
+        instance.location = metadata["location"]
+        instance.day= metadata["day"]
+        instance.identifier = metadata["identifier"]
+        instance.hours = metadata['hours']
+        instance.bit_mask = metadata['bit_mask']
+        
+        # Set the DataFrame
+        instance.data = dataframe
+        
+        # Recreate logger (shouldn't be serialized)
+        instance.logger = logging.getLogger(__name__)
+
+        return instance
+

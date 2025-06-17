@@ -1,5 +1,5 @@
 from nicegui import ui
-from grid_event_handler import GridEventHandler
+from src.frontend.components.grid_event_handler import GridEventHandler
 
 class CompressSwitch():
     def __init__(self):
@@ -17,5 +17,5 @@ class CompressSwitch():
             self.day_3_grid_handler.clicks_enabled = False
             await self.day_3_grid_handler.compress_grid()
         else:
-            self.day_3_grid_handler.clicks_enabled = True
-            await self.day_3_grid_handler.update_grids()
+            if self.day_3_grid_handler.grid_compressed:
+                await self.day_3_grid_handler.update_grids()

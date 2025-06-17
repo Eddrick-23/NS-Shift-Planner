@@ -1,18 +1,21 @@
 from nicegui import run, ui
 import requests
 from typing import Literal
-from grid_event_handler import GridEventHandler
-from hour_grid_handler import HourGridHandler
+from src.frontend.components.grid_event_handler import GridEventHandler
+from src.frontend.components.hour_grid_handler import HourGridHandler
+from src.frontend.components.upload_file import create_upload_button
 
 
 class ControlPanelHandler:
-    INVALID_NAMES = ["MCC","HCC1","HCC2","0","TOTAL"]
+    INVALID_NAMES = ["MCC", "HCC1", "HCC2", "0", "TOTAL"]
+
     def __init__(self):
         self.radio_value = "MCC"
         self.radio_options = ["MCC", "HCC1", "HCC2"]
         self.TIMEOUT = 10
         self.ADD_NAME_URL = "http://localhost:8000/grid/add/"
         self.REMOVE_NAME_URL = "http://localhost:8000/grid/remove/"
+        self.DOWNLOAD_URL = "http://localhost:8000/download/"
         # Store references to UI elements
         self.grid_option = None
         self.name_input = None
@@ -30,12 +33,10 @@ class ControlPanelHandler:
                 ui.element("q-fab-action").props("icon=book color=teal-8").tooltip(
                     "Read Me"
                 ).on("click", lambda: self.handle_read_me_redirect())
-                ui.element("q-fab-action").props("icon=upload color=teal-8").tooltip(
-                    "Upload"
-                )
+                create_upload_button()
                 ui.element("q-fab-action").props("icon=download color=teal-8").tooltip(
                     "Download"
-                )
+                ).on("click", self.handle_download)
 
             grid_options = {
                 "DAY1:MCC": "DAY1:MCC",
@@ -49,7 +50,9 @@ class ControlPanelHandler:
 
             # Store references to UI elements
             self.grid_option = ui.select(
-                label="Grid", options=grid_options, clearable=True,
+                label="Grid",
+                options=grid_options,
+                clearable=True,
             ).props("outlined")
             self.name_input = (
                 ui.input(label="Name").props("clearable").classes("flex-1")
@@ -63,9 +66,13 @@ class ControlPanelHandler:
                     "flex-1"
                 ).tooltip("Remove from grid")
 
-            self.radio_group = ui.radio(
-                options=self.radio_options, value=self.radio_value
-            ).props("inline size=lg").on_value_change(lambda: self.set_grid_event_handler_location(self.radio_group.value))
+            self.radio_group = (
+                ui.radio(options=self.radio_options, value=self.radio_value)
+                .props("inline size=lg")
+                .on_value_change(
+                    lambda: self.set_grid_event_handler_location(self.radio_group.value)
+                )
+            )
             with ui.teleport(
                 f"#{self.radio_group.html_id} > div:nth-child(1) .q-radio__label"
             ):
@@ -86,6 +93,7 @@ class ControlPanelHandler:
         Add a grid_event_handler instance so that control panel actions can update grids automatically
         """
         self.grid_event_handlers.append(grid_event_handler)
+
     def add_hour_grid_handler(self, hour_grid_handler: HourGridHandler):
         """
         Add a hour_grid_handler instance so that control panel actions can update the hour grid automatically
@@ -114,14 +122,15 @@ class ControlPanelHandler:
             if grid_event_handler.day == target_day:
                 await grid_event_handler.update_grids()
                 return
+
     def set_radio_value(self, value: Literal["MCC", "HCC1", "HCC2"]):
         """
         Set radio button value. Mainly called for hot keys
         """
         self.radio_group.value = value
         self.radio_group.update()
-    
-    def set_grid_event_handler_location(self,location:Literal["MCC","HCC1","HCC2"]):
+
+    def set_grid_event_handler_location(self, location: Literal["MCC", "HCC1", "HCC2"]):
         """
         Set the grid event handlers active location
         """
@@ -160,13 +169,20 @@ class ControlPanelHandler:
         if target_grid is None:
             ui.notify("Select a grid")
             return
-        body = {"grid_name":target_grid, "name":name}
+        body = {"grid_name": target_grid, "name": name}
         response = await run.io_bound(requests.delete, self.REMOVE_NAME_URL, json=body)
         await self.trigger_handler_update(target_grid)
         ui.notify(response.json()["detail"])
 
     def handle_read_me_redirect(self):
         ui.navigate.to("https://github.com/Eddrick-23/NS-Shift-Planner", new_tab=True)
+    
+    async def handle_download(self):
+        response = await run.io_bound(requests.post, self.DOWNLOAD_URL)
+        if response.status_code != 200:
+            ui.notify("Error in exporting project", type="negative")
+            return
+        ui.download.content(response.content,"planning.zip")
 
 
 # Usage example:

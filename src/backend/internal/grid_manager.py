@@ -1,3 +1,6 @@
+import io
+import zipfile
+import json
 from bitarray import bitarray
 from typing import cast
 from src.backend.internal.grid_handler import GridHandler
@@ -161,12 +164,69 @@ class GridManager:
         hour_data = handler.get_hours()
         __update_day_hours(handler.day, name, hour_data[name])
 
+    def serialise_to_zip(self):
+        """
+        Serialise GridManager and all GridHandler instances to zip
+
+        Returns:
+            bytes: zip file containing all serialised GridHandlers
+        """
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            manager_info = {
+                "all_hours": self.all_hours,
+                "existing_names": {k: list(v) for k, v in self.existing_names.items()},
+                "handler_keys": list(self.all_grids.keys()),
+                "total_handlers": len(self.all_grids),
+            }
+            zip_file.writestr("manager_info.json", json.dumps(manager_info))
+            for key, handler in self.all_grids.items():
+                key = key.replace(":","_")
+                handler = cast(GridHandler, handler)
+                metadata, df_bytes = handler.serialise_for_storage()
+
+                handler_folder = f"handlers/{key}/"
+
+                metadata_filename = f"{handler_folder}metadata.json"
+                zip_file.writestr(metadata_filename, json.dumps(metadata))
+
+                dataframe_filename = f"{handler_folder}dataframe.parquet"
+                zip_file.writestr(dataframe_filename, df_bytes)
+        zip_buffer.seek(0)
+        return zip_buffer.getvalue()
+
+    @classmethod
+    def deserialise_from_zip(cls, zip_bytes: bytes) -> "GridManager":
+        """
+        Reconstruct GridManager from zip_bytes
+        """
+        instance = cls.__new__(cls)
+        with zipfile.ZipFile(io.BytesIO(zip_bytes), "r") as zip_file:
+            # Read manifest
+            manager_data = json.loads(zip_file.read("manager_info.json").decode())
+            instance.all_hours = manager_data["all_hours"]
+            instance.existing_names = {
+                k: set(v) for k, v in manager_data["existing_names"].items()
+            }
+
+            for key in manager_data["handler_keys"]:
+                metadata_filename = f"handlers/{key}/metadata.json"
+                df_parquet_filename = f"handlers/{key}/dataframe.parquet"
+                metadata_json = json.loads(zip_file.read(metadata_filename).decode())
+                df_bytes = zip_file.read(df_parquet_filename)
+                handler_instance = GridHandler.deserialise_from_storage(
+                    metadata_json, df_bytes
+                )
+                key.replace("_",":")
+                instance.all_grids[key] = handler_instance
+        return instance
+
 
 # if __name__ == "__main__":
-    # test = GridManager()
+# test = GridManager()
 
-    # df1 = test.all_grids["DAY1:MCC"].data
-    # df2 = test.all_grids["DAY1:HCC1"].data
-    # df3 = test.all_grids["DAY1:HCC2"].data
-    # result = test.format_keys_v2(df1, df2, df3)
-    # print(result)
+# df1 = test.all_grids["DAY1:MCC"].data
+# df2 = test.all_grids["DAY1:HCC1"].data
+# df3 = test.all_grids["DAY1:HCC2"].data
+# result = test.format_keys_v2(df1, df2, df3)
+# print(result)

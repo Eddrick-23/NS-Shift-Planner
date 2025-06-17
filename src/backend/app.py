@@ -1,6 +1,7 @@
+import io
 from typing import cast
-from fastapi import FastAPI, Depends, status
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Depends, status, HTTPException, Request
+from fastapi.responses import JSONResponse,StreamingResponse
 from pydantic import BaseModel
 from typing import Literal
 from dotenv import load_dotenv
@@ -20,10 +21,11 @@ load_dotenv()
 
 grid_manager = GridManager()
 app = FastAPI()
+app.state.grid_manager = grid_manager
 
 
 def get_manager():
-    return grid_manager
+    return app.state.grid_manager
 
 
 # Request body schema
@@ -254,3 +256,28 @@ async def get_all_hours(manager: GridManager = Depends(get_manager)):
         "pinned_bottom_row": pinned_row_data
     }
     return response
+
+@app.post("/download/")
+async def save_as_file(manager:GridManager = Depends(get_manager)):
+    try:
+        zip_bytes = manager.serialise_to_zip()
+        return StreamingResponse(
+                io.BytesIO(zip_bytes),
+                media_type="application/zip",
+                headers={"Content-Disposition": "attachment; filename=planning.zip"}
+            )
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Export failed:{str(e)}")
+
+@app.post("/upload/")
+async def upload_file(request:Request, manager:GridManager = Depends(get_manager)):
+    try:
+        zip_bytes = await request.body()
+        manager_instance = GridManager.deserialise_from_zip(zip_bytes)
+        app.state.grid_manager = manager_instance
+        return JSONResponse(status_code=200)
+    except Exception as e:
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"detail":str(e)})
+
+

@@ -1,11 +1,11 @@
 from nicegui import ui
 from nicegui.events import KeyEventArguments
-from grid_event_handler import GridEventHandler
-from control_panel import ControlPanelHandler
-from hour_grid_handler import HourGridHandler
-from help_button import create_help_button,create_keybinds_button
-from compress_grid_switch import CompressSwitch
-from css import custom_css
+from src.frontend.components.grid_event_handler import GridEventHandler
+from src.frontend.components.control_panel import ControlPanelHandler
+from src.frontend.components.hour_grid_handler import HourGridHandler
+from src.frontend.components.help_button import create_help_button,create_keybinds_button
+from src.frontend.components.compress_grid_switch import CompressSwitch
+from src.frontend.styles.css import custom_css
 
 # Define custom CSS for borders
 
@@ -61,10 +61,11 @@ async def main_page():
     control_panel_handler.add_hour_grid_handler(hour_grid_handler)
 
     switch = CompressSwitch()
-    switch.add_day_3_grid_handler(grid_handler_3)
     with ui.row().classes("fixed right-4 bottom-4"):
         switch.create_switch()
         create_keybinds_button()
         create_help_button() 
+    switch.add_day_3_grid_handler(grid_handler_3)
+    grid_handler_3.add_compress_switch(switch.switch)
 
 ui.run()
