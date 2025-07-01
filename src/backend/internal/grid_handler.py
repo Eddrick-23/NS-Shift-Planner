@@ -30,6 +30,34 @@ class GridHandler:
         self.hours = {}  # stores hour data in name:hour format
         self.load_data()
         self.bit_mask = self.create_bit_mask(len(self.data) // 2)
+    def equals(self,other:"GridHandler") -> tuple[bool,str|None]:
+        """
+        Determine whether this class instance is equivalent to another
+
+        Args:
+            other (GridHandler): GridHandler class instance to compare with
+
+        Returns:
+            tuple[bool, str | None]: 
+            - A tuple where the first element is True if the instances are equal, False otherwise.
+            - The second element is a string indicating which attribute failed the comparison 
+              (e.g., "hours", "names", "bit_mask", "dataframe") or None if they are equal.
+        """
+        if not isinstance(other, GridHandler):
+            return False, "instance"
+        if not (self.identifier == other.identifier):
+            return False, "identifier"
+        if not (self.location == other.location):
+            return False, "location"
+        if not (self.hours == other.hours):
+            return False, "hours"
+        if not (self.names == other.names):
+            return False, "names"
+        if not (self.bit_mask == other.bit_mask):
+            return False, "bit_mask"
+        if not self.data.equals(other.data):
+            return False, "dataframe"
+        return True,None
 
     def load_data(self):
         """
@@ -533,13 +561,13 @@ class GridHandler:
         dataframe = pd.read_parquet(buffer, engine="pyarrow")
         
         #create new instance without calling __init__
-        instance = cls.__new__cls(cls)
+        instance = cls.__new__(cls)
         instance.names = set(metadata["names"])
         instance.location = metadata["location"]
         instance.day= metadata["day"]
         instance.identifier = metadata["identifier"]
         instance.hours = metadata['hours']
-        instance.bit_mask = metadata['bit_mask']
+        instance.bit_mask = bitarray(metadata['bit_mask'])
         
         # Set the DataFrame
         instance.data = dataframe
@@ -548,4 +576,4 @@ class GridHandler:
         instance.logger = logging.getLogger(__name__)
 
         return instance
-
+    

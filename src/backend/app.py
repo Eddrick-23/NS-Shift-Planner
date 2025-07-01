@@ -1,7 +1,8 @@
 import io
+import logging
 from typing import cast
 from fastapi import FastAPI, Depends, status, HTTPException, Request
-from fastapi.responses import JSONResponse,StreamingResponse
+from fastapi.responses import JSONResponse,StreamingResponse, Response
 from pydantic import BaseModel
 from typing import Literal
 from dotenv import load_dotenv
@@ -18,7 +19,7 @@ load_dotenv()
 
 # # Initialize Firestore client
 # db = firestore.client()
-
+logging.basicConfig(level=logging.DEBUG)
 grid_manager = GridManager()
 app = FastAPI()
 app.state.grid_manager = grid_manager
@@ -276,8 +277,12 @@ async def upload_file(request:Request, manager:GridManager = Depends(get_manager
         zip_bytes = await request.body()
         manager_instance = GridManager.deserialise_from_zip(zip_bytes)
         app.state.grid_manager = manager_instance
-        return JSONResponse(status_code=200)
+        return JSONResponse(status_code=status.HTTP_200_OK, content={"detail": "ok"})
     except Exception as e:
-        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"detail":str(e)})
+        logging.debug(f"{str(e)}")
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"detail":"Internal server error: likely invalid/corrupted zip file"})
 
-
+@app.delete("/reset-all/")
+async def reset_all(request:Request,manager:GridManager = Depends(get_manager)):
+    app.state.grid_manager = GridManager()
+    return JSONResponse(status_code=status.HTTP_200_OK, content={"detial":"data resetted"})

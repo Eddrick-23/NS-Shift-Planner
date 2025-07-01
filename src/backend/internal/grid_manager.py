@@ -208,10 +208,12 @@ class GridManager:
             instance.existing_names = {
                 k: set(v) for k, v in manager_data["existing_names"].items()
             }
+            instance.all_grids = {}
 
             for key in manager_data["handler_keys"]:
-                metadata_filename = f"handlers/{key}/metadata.json"
-                df_parquet_filename = f"handlers/{key}/dataframe.parquet"
+                folder = key.replace(":","_")
+                metadata_filename = f"handlers/{folder}/metadata.json"
+                df_parquet_filename = f"handlers/{folder}/dataframe.parquet"
                 metadata_json = json.loads(zip_file.read(metadata_filename).decode())
                 df_bytes = zip_file.read(df_parquet_filename)
                 handler_instance = GridHandler.deserialise_from_storage(
@@ -220,13 +222,3 @@ class GridManager:
                 key.replace("_",":")
                 instance.all_grids[key] = handler_instance
         return instance
-
-
-# if __name__ == "__main__":
-# test = GridManager()
-
-# df1 = test.all_grids["DAY1:MCC"].data
-# df2 = test.all_grids["DAY1:HCC1"].data
-# df3 = test.all_grids["DAY1:HCC2"].data
-# result = test.format_keys_v2(df1, df2, df3)
-# print(result)

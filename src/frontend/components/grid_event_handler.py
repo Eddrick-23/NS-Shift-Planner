@@ -43,7 +43,7 @@ class GridEventHandler:
         self.HCC2_grid = self.create_grid(
             column_defs=json_data[f"DAY{self.day}:HCC2"]["columnDefs"],
             row_data=json_data[f"DAY{self.day}:HCC2"]["rowData"],
-        ).classes("hidden")
+        ).classes("hidden" if not json_data[f"DAY{self.day}:HCC2"]["rowData"] else "")
 
     def create_grid(self, column_defs: list[dict], row_data: list[dict]):
         """
@@ -115,7 +115,7 @@ class GridEventHandler:
         """
         fetch updated grid data and updates the aggrids
         """
-
+        ui.notify("Update grids called")
         new_data = await self.fetch_grid_data()
         self.clicks_enabled = True
         if self.compress_switch is not None:

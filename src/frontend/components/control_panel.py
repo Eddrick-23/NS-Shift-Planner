@@ -4,6 +4,7 @@ from typing import Literal
 from src.frontend.components.grid_event_handler import GridEventHandler
 from src.frontend.components.hour_grid_handler import HourGridHandler
 from src.frontend.components.upload_file import create_upload_button
+import asyncio
 
 
 class ControlPanelHandler:
@@ -16,6 +17,7 @@ class ControlPanelHandler:
         self.ADD_NAME_URL = "http://localhost:8000/grid/add/"
         self.REMOVE_NAME_URL = "http://localhost:8000/grid/remove/"
         self.DOWNLOAD_URL = "http://localhost:8000/download/"
+        self.RESET_URL = "http://localhost:8000/reset-all/"
         # Store references to UI elements
         self.grid_option = None
         self.name_input = None
@@ -37,6 +39,9 @@ class ControlPanelHandler:
                 ui.element("q-fab-action").props("icon=download color=teal-8").tooltip(
                     "Download"
                 ).on("click", self.handle_download)
+                ui.element("q-fab-action").props(
+                    "icon=restart_alt color=red-8"
+                ).tooltip("Reset").on("click", self.handle_reset)
 
             grid_options = {
                 "DAY1:MCC": "DAY1:MCC",
@@ -157,6 +162,20 @@ class ControlPanelHandler:
         await self.trigger_handler_update(target_grid)
         ui.notify(response.json()["detail"])
 
+    async def reload_all_grids(self):
+        """
+        update all grid event handlers and hour_grid_handler. <br>
+        This method is normally called after a full page reload to make sure all displayed data is up to date
+        """
+        tasks = [
+            self.trigger_handler_update("DAY1"),
+            self.trigger_handler_update("DAY2"),
+            self.trigger_handler_update("DAY3"),
+            self.hour_grid_handler.update_hour_grid(),
+        ]
+
+        await asyncio.gather(*tasks)
+
     async def handle_remove(self):
         """
         remove name from specified grid
@@ -176,13 +195,37 @@ class ControlPanelHandler:
 
     def handle_read_me_redirect(self):
         ui.navigate.to("https://github.com/Eddrick-23/NS-Shift-Planner", new_tab=True)
-    
+
     async def handle_download(self):
         response = await run.io_bound(requests.post, self.DOWNLOAD_URL)
         if response.status_code != 200:
             ui.notify("Error in exporting project", type="negative")
             return
-        ui.download.content(response.content,"planning.zip")
+        ui.download.content(response.content, "planning.zip")
+
+    async def handle_reset(self):
+        async def handle_reset_confirm():
+            response = await run.io_bound(requests.delete, self.RESET_URL)
+            if response.status_code != 200:
+                ui.notify("Reset error occured", type="negative")
+                return
+            ui.run_javascript("location.reload();")
+
+        with ui.dialog() as dialog:
+            with ui.card():
+                ui.label("Reset All").style(
+                    "text-align: center; width: 100%; font-size: large"
+                )
+                ui.label("This action is irreversible!").style(
+                    "text-align: center; width: 100%;"
+                ).tailwind.text_color("red-600").font_weight("bold")
+                with ui.row():
+                    ui.button("Cancel").props("color=red").on_click(
+                        lambda: dialog.close()
+                    )
+                    ui.button("Confirm").on_click(handle_reset_confirm)
+
+        dialog.open()
 
 
 # Usage example:
