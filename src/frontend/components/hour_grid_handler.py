@@ -3,15 +3,15 @@ import requests
 
 
 class HourGridHandler:
-    def __init__(self):
+    def __init__(self, session_id: str):
         self.FETCH_HOUR_DATA_URL = "http://localhost:8000/hours/"
+        self.HEADERS = {"X-Session-ID": session_id}
         self.grid = None
 
     async def create_hour_grid(self):
         data = await self.fetch_grid_data()
         if data is None:
             return
-        # print(data)
         self.grid = ui.aggrid(
             {
                 "columnDefs": data["columnDefs"],
@@ -22,7 +22,9 @@ class HourGridHandler:
         ).classes("w-full")
 
     async def fetch_grid_data(self) -> dict | None:
-        response = await run.io_bound(requests.get, url=self.FETCH_HOUR_DATA_URL)
+        response = await run.io_bound(
+            requests.get, self.FETCH_HOUR_DATA_URL, headers=self.HEADERS
+        )
         if response.status_code != 200:
             ui.notify("Fetch hour data failed!", type="negative")
             return
@@ -34,4 +36,6 @@ class HourGridHandler:
             return
         self.grid.run_grid_method("setGridOption", "columnDefs", new_data["columnDefs"])
         self.grid.run_grid_method("setGridOption", "rowData", new_data["rowData"])
-        self.grid.run_grid_method("setGridOption", "pinnedBottomRowData", new_data["pinned_bottom_row"])
+        self.grid.run_grid_method(
+            "setGridOption", "pinnedBottomRowData", new_data["pinned_bottom_row"]
+        )

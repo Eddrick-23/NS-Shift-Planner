@@ -1,32 +1,38 @@
 import io
 import logging
 from typing import cast
-from fastapi import FastAPI, Depends, status, HTTPException, Request
+from fastapi import FastAPI,Header, Depends, status, HTTPException, Request
 from fastapi.responses import JSONResponse,StreamingResponse, Response
 from pydantic import BaseModel
+from cachetools import LRUCache
 from typing import Literal
 from dotenv import load_dotenv
 import firebase_admin
 from firebase_admin import credentials, firestore
+from src.backend.config import config
 from src.backend.internal.grid_manager import GridManager, GridHandler
 import src.backend.internal.time_blocks as tb
-
-# Load .env to get credentials path
-load_dotenv()
-# cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+#cred_path = config.GOOGLE_APPLICATION_CREDENTIALS
 # cred = credentials.Certificate(cred_path)
 # firebase_admin.initialize_app(cred)
 
 # # Initialize Firestore client
 # db = firestore.client()
-logging.basicConfig(level=logging.DEBUG)
-grid_manager = GridManager()
+logging.basicConfig(level=logging.DEBUG,force=True)
 app = FastAPI()
-app.state.grid_manager = grid_manager
+app.state.manager_cache = LRUCache(maxsize=config.LRU_CACHE_SIZE)
 
-
-def get_manager():
-    return app.state.grid_manager
+def get_manager(x_session_id:str = Header(...)) -> GridManager:
+    logging.debug(x_session_id)
+    cache = app.state.manager_cache
+    cache = cast(LRUCache, cache)
+    if x_session_id in cache:
+        logging.debug("Cache hit, returning cached manager")
+        return cache[x_session_id]
+    manager = GridManager()
+    cache[x_session_id] = manager
+    logging.debug("Cache miss,Creating new manager")
+    return manager
 
 
 # Request body schema
@@ -137,8 +143,8 @@ async def add_name(
             content={"detail": f"{name} already exists in {target_grid}"},
         )
     grid_handler.add_name(name)
-    grid_manager.update_existing_names(day)
-    grid_manager.update_hours(name, target_grid)
+    manager.update_existing_names(day)
+    manager.update_hours(name, target_grid)
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
         content={"detail": f"{name} added to {target_grid}"},
@@ -201,11 +207,9 @@ async def allocate_shift(
         grid_handler.allocate_shift(location, second_half, name)
 
     elif allocation_size == "0.25":
-        print(f"allocate_shift:{location, time_block, name}")
         grid_handler.allocate_shift(location, time_block, name)
     elif allocation_size == "0.75":
         second_half = time_block[:-2] + "30"
-        print(f"allocate_shift:{location, second_half, name}")
         grid_handler.allocate_shift(location, second_half, name)
     manager.update_hours(name, target_grid)
 
@@ -218,7 +222,7 @@ async def allocate_shift(
 
 
 @app.get("/hours/")
-async def get_all_hours(manager: GridManager = Depends(get_manager)):
+async def get_all_hours(request:Request,manager: GridManager = Depends(get_manager)):
     row_data, pinned_row_data = manager.get_all_hours()
     response = {
         "columnDefs": [
@@ -259,7 +263,7 @@ async def get_all_hours(manager: GridManager = Depends(get_manager)):
     return response
 
 @app.post("/download/")
-async def save_as_file(manager:GridManager = Depends(get_manager)):
+async def save_as_file(request:Request,manager:GridManager = Depends(get_manager)):
     try:
         zip_bytes = manager.serialise_to_zip()
         return StreamingResponse(
@@ -276,7 +280,7 @@ async def upload_file(request:Request, manager:GridManager = Depends(get_manager
     try:
         zip_bytes = await request.body()
         manager_instance = GridManager.deserialise_from_zip(zip_bytes)
-        app.state.grid_manager = manager_instance
+        app.state.manager_cache[request.headers["X-Session-ID"]] = manager_instance
         return JSONResponse(status_code=status.HTTP_200_OK, content={"detail": "ok"})
     except Exception as e:
         logging.debug(f"{str(e)}")
@@ -284,5 +288,5 @@ async def upload_file(request:Request, manager:GridManager = Depends(get_manager
 
 @app.delete("/reset-all/")
 async def reset_all(request:Request,manager:GridManager = Depends(get_manager)):
-    app.state.grid_manager = GridManager()
-    return JSONResponse(status_code=status.HTTP_200_OK, content={"detial":"data resetted"})
+    app.state.manager_cache[request.headers["X-Session-ID"]] = GridManager()
+    return JSONResponse(status_code=status.HTTP_200_OK, content={"detail":"data resetted"})

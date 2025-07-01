@@ -885,6 +885,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "bitarray" },
+    { name = "cachetools" },
     { name = "fastapi", extra = ["standard"] },
     { name = "firebase-admin" },
     { name = "google-cloud-firestore" },
@@ -903,6 +904,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "bitarray", specifier = ">=3.4.2" },
+    { name = "cachetools", specifier = ">=5.5.2" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.115.12" },
     { name = "firebase-admin", specifier = ">=6.9.0" },
     { name = "google-cloud-firestore", specifier = ">=2.21.0" },

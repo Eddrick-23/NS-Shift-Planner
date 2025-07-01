@@ -8,5 +8,18 @@ custom_css = '''
 .ag-cell:hover {
     border: 2px solid #2196f3 !important;   
 }
+.center-header {
+    text-align: center !important;
+    justify-content: center !important;
+    display: flex !important;
+    align-items: center !important;
+}
+.ag-header-group-cell-label {
+    justify-content: center !important;
+    display: flex !important;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+}
 </style>
 '''

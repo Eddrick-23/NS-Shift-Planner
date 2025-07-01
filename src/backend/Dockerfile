@@ -5,6 +5,7 @@ WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked
+COPY .env .env
 COPY src/__init__.py ./src/
 COPY src/backend/ ./src/backend/
 COPY ../../secrets ./secrets

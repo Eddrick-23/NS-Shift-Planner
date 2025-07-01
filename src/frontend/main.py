@@ -1,13 +1,18 @@
-from nicegui import ui
+from nicegui import ui, app
+from uuid import uuid4
 from nicegui.events import KeyEventArguments
 from src.frontend.components.grid_event_handler import GridEventHandler
 from src.frontend.components.control_panel import ControlPanelHandler
 from src.frontend.components.hour_grid_handler import HourGridHandler
-from src.frontend.components.help_button import create_help_button,create_keybinds_button
+from src.frontend.components.help_button import (
+    create_help_button,
+    create_keybinds_button,
+)
 from src.frontend.components.compress_grid_switch import CompressSwitch
 from src.frontend.styles.css import custom_css
 
-# Define custom CSS for borders
+SESSION_KEY = "session_id"
+
 
 def handle_key(e: KeyEventArguments, control_panel_handler: ControlPanelHandler):
     if e.modifiers.shift and e.action.keydown:
@@ -22,12 +27,25 @@ def handle_key(e: KeyEventArguments, control_panel_handler: ControlPanelHandler)
             control_panel_handler.set_radio_value("HCC2")
 
 
+def get_session_id() -> str:
+    session_id = app.storage.tab.get(SESSION_KEY, None)
+    if not session_id:
+        session_id = str(uuid4())
+        app.storage.tab[SESSION_KEY] = session_id
+        ui.notify(f"New session created:{session_id}")
+    else:
+        ui.notify(f"Loaded existing session:{session_id}")
+    return session_id
+
+
 @ui.page("/")
 async def main_page():
+    await ui.context.client.connected()
+    SESSION_ID = get_session_id()
     # Add the CSS to the page
     ui.add_head_html(custom_css)
     # Control Panel
-    control_panel_handler = ControlPanelHandler()
+    control_panel_handler = ControlPanelHandler(session_id=SESSION_ID)
     ui.keyboard(on_key=lambda e: handle_key(e, control_panel_handler))
     control_panel = control_panel_handler.create_control_panel()
     ui.separator()
@@ -40,16 +58,16 @@ async def main_page():
         container3_right = ui.column().classes("w-4/6 gap-1")
 
     with container1:
-        grid_handler_1 = GridEventHandler(day=1)
+        grid_handler_1 = GridEventHandler(day=1, session_id=SESSION_ID)
         await grid_handler_1.generate_grids()
     with container2:
-        grid_handler_2 = GridEventHandler(day=2)
+        grid_handler_2 = GridEventHandler(day=2, session_id=SESSION_ID)
         await grid_handler_2.generate_grids()
     with container3_right:
-        grid_handler_3 = GridEventHandler(day=3)
+        grid_handler_3 = GridEventHandler(day=3, session_id=SESSION_ID)
         await grid_handler_3.generate_grids()
     with container3_left:
-        hour_grid_handler = HourGridHandler()
+        hour_grid_handler = HourGridHandler(session_id=SESSION_ID)
         await hour_grid_handler.create_hour_grid()
 
     grid_handler_1.add_hour_grid_handler(hour_grid_handler)
@@ -64,8 +82,9 @@ async def main_page():
     with ui.row().classes("fixed right-4 bottom-4"):
         switch.create_switch()
         create_keybinds_button()
-        create_help_button() 
+        create_help_button()
     switch.add_day_3_grid_handler(grid_handler_3)
     grid_handler_3.add_compress_switch(switch.switch)
+
 
 ui.run()

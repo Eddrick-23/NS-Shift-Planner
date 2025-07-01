@@ -30,7 +30,8 @@ class GridHandler:
         self.hours = {}  # stores hour data in name:hour format
         self.load_data()
         self.bit_mask = self.create_bit_mask(len(self.data) // 2)
-    def equals(self,other:"GridHandler") -> tuple[bool,str|None]:
+
+    def equals(self, other: "GridHandler") -> tuple[bool, str | None]:
         """
         Determine whether this class instance is equivalent to another
 
@@ -38,9 +39,9 @@ class GridHandler:
             other (GridHandler): GridHandler class instance to compare with
 
         Returns:
-            tuple[bool, str | None]: 
+            tuple[bool, str | None]:
             - A tuple where the first element is True if the instances are equal, False otherwise.
-            - The second element is a string indicating which attribute failed the comparison 
+            - The second element is a string indicating which attribute failed the comparison
               (e.g., "hours", "names", "bit_mask", "dataframe") or None if they are equal.
         """
         if not isinstance(other, GridHandler):
@@ -57,7 +58,7 @@ class GridHandler:
             return False, "bit_mask"
         if not self.data.equals(other.data):
             return False, "dataframe"
-        return True,None
+        return True, None
 
     def load_data(self):
         """
@@ -118,8 +119,6 @@ class GridHandler:
         second_slot_data = self.data.loc[self.data.Time == second_slot].to_numpy()[0][
             2:
         ]
-        # print(first_slot,second_slot)
-        # print(self.data.loc[self.data.Time==first_slot].to_numpy())
         return np.array_equal(first_slot_data, second_slot_data)
 
     def _set_bit(self, idx: int, value: Literal[0, 1]):
@@ -455,9 +454,16 @@ class GridHandler:
             list[dict]:
                 list of dictionaries to be served as json data for frontend
         """
-        column_defs = [{"headerName": col, "field": col} for col in df.columns[1:]]
-        column_defs = self._style_columns_compressed(column_defs)
-        col_data = {data["field"]: [] for data in column_defs}
+        column_defs_children = [
+            {"headerName": col, "field": col} for col in df.columns[1:]
+        ]
+        column_defs_children = self._style_columns_compressed(column_defs_children)
+        column_defs = {
+            "headerName": "Night Duty",
+            "headerClass": "center-header",
+            "children": column_defs_children,
+        }
+        col_data = {data["field"]: [] for data in column_defs_children}
 
         row_data = df.to_dict(orient="records")
         for row in row_data:
@@ -485,7 +491,7 @@ class GridHandler:
             else:
                 formatted_row_data.append(data)
 
-        return {"columnDefs": column_defs, "rowData": formatted_row_data}
+        return {"columnDefs": [column_defs], "rowData": formatted_row_data}
 
     def _style_columns_compressed(self, column_defs: list[dict]) -> list[dict]:
         """
@@ -532,48 +538,50 @@ class GridHandler:
                 - dataframe_bytes (bytes): Dataframe serialised as parquet bytes
         """
         metadata = {
-            'names': list(self.names),
-            'location': self.location,
-            'day':self.day,
-            'identifier':self.identifier,
-            'hours':self.hours,
-            'bit_mask': self.bit_mask.to01()
+            "names": list(self.names),
+            "location": self.location,
+            "day": self.day,
+            "identifier": self.identifier,
+            "hours": self.hours,
+            "bit_mask": self.bit_mask.to01(),
         }
         buffer = io.BytesIO()
         self.data.to_parquet(buffer, engine="pyarrow")
         dataframe_bytes = buffer.getvalue()
 
-        return metadata,dataframe_bytes
+        return metadata, dataframe_bytes
+
     @classmethod
-    def deserialise_from_storage(cls,metadata:dict[str,any], dataframe_bytes:bytes) -> "GridHandler":
+    def deserialise_from_storage(
+        cls, metadata: dict[str, any], dataframe_bytes: bytes
+    ) -> "GridHandler":
         """
         Reconstruct GridHandler instance from serialized data.
-        
+
         Args:
             metadata: Dictionary containing class attributes
             dataframe_bytes: DataFrame serialized as parquet bytes
-            
+
         Returns:
             GridHandler: Reconstructed instance
         """
-        #reconstruct dataframe
+        # reconstruct dataframe
         buffer = io.BytesIO(dataframe_bytes)
         dataframe = pd.read_parquet(buffer, engine="pyarrow")
-        
-        #create new instance without calling __init__
+
+        # create new instance without calling __init__
         instance = cls.__new__(cls)
         instance.names = set(metadata["names"])
         instance.location = metadata["location"]
-        instance.day= metadata["day"]
+        instance.day = metadata["day"]
         instance.identifier = metadata["identifier"]
-        instance.hours = metadata['hours']
-        instance.bit_mask = bitarray(metadata['bit_mask'])
-        
+        instance.hours = metadata["hours"]
+        instance.bit_mask = bitarray(metadata["bit_mask"])
+
         # Set the DataFrame
         instance.data = dataframe
-        
+
         # Recreate logger (shouldn't be serialized)
         instance.logger = logging.getLogger(__name__)
 
         return instance
-    

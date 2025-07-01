@@ -5,10 +5,11 @@ from src.frontend.components.hour_grid_handler import HourGridHandler
 
 
 class GridEventHandler:
-    def __init__(self, day: int):
+    def __init__(self, day: int, session_id: str):
         self.FETCH_GRID_DATA_URL = "http://localhost:8000/grid/"
         self.FETCH_COMPRESSED_GRID_DATA_URL = "http://localhost:8000/grid/compressed"
         self.ALLOCATE_SHIFT_URL = "http://localhost:8000/grid/allocate/"
+        self.HEADERS = {"X-Session-ID": session_id}
         self.left_half = False
         self.right_half = False
         self.day = day
@@ -105,7 +106,9 @@ class GridEventHandler:
                     body["allocation_size"] = "1"
                 else:
                     body["allocation_size"] = "0.25"
-        response = await run.io_bound(requests.post, self.ALLOCATE_SHIFT_URL, json=body)
+        response = await run.io_bound(
+            requests.post, self.ALLOCATE_SHIFT_URL, json=body, headers=self.HEADERS
+        )
         await self.update_grids()
         await self.hour_grid_handler.update_hour_grid()
         if response.status_code != 200:
@@ -115,7 +118,6 @@ class GridEventHandler:
         """
         fetch updated grid data and updates the aggrids
         """
-        ui.notify("Update grids called")
         new_data = await self.fetch_grid_data()
         self.clicks_enabled = True
         if self.compress_switch is not None:
@@ -161,24 +163,29 @@ class GridEventHandler:
         day = self.day
 
         response = await run.io_bound(
-            requests.post, self.FETCH_GRID_DATA_URL, json={"day": day}
+            requests.post,
+            self.FETCH_GRID_DATA_URL,
+            json={"day": day},
+            headers=self.HEADERS,
         )
         if response.status_code != 200:
             ui.notify(f"Fetch grid data for day{day} failed.")
         return response.json()
 
-    def update_grid_height(self, grid: ui.aggrid, row_data: list[dict]):
+    def update_grid_height(self, grid: ui.aggrid, row_data: list[dict],extra_rows:int=0,default_height:int=4):
         """
         Set new grid height
 
         Args:
             grid (ui.aggrid): aggrid instance to update
             row_data (list[dict]): updated row data for the grid
+            extra_rows (int): force add extra rows(Used for compressed_grid height adjustment)
+            default_height (int): Default height in rem
         """
 
         # compute height based on row_data
-        num_rows = len(row_data)
-        calculated_rem_height = 4 + 1.75 * (max(0, num_rows - 1))
+        num_rows = len(row_data) + extra_rows
+        calculated_rem_height = default_height + 1.75 * (max(0, num_rows - 1))
         # update style
         grid.style(f"height: {calculated_rem_height}rem")
 
@@ -188,8 +195,8 @@ class GridEventHandler:
         - Events that occur to this grid will trigger an update on the hour grid
         """
         self.hour_grid_handler = handler
-    
-    def add_compress_switch(self,switch:ui.switch):
+
+    def add_compress_switch(self, switch: ui.switch):
         """
         Add switch handler to this grid
         """
@@ -204,7 +211,10 @@ class GridEventHandler:
         """
         body = {"day": 3}
         response = await run.io_bound(
-            requests.post, url=self.FETCH_COMPRESSED_GRID_DATA_URL, json=body
+            requests.post,
+            url=self.FETCH_COMPRESSED_GRID_DATA_URL,
+            json=body,
+            headers=self.HEADERS,
         )
         if response.status_code != 200:
             ui.notify("Error in getting compressed grid data", type="negative")
@@ -213,5 +223,5 @@ class GridEventHandler:
         row_data = data["rowData"]
         self.MCC_grid.run_grid_method("setGridOption", "columnDefs", column_defs)
         self.MCC_grid.run_grid_method("setGridOption", "rowData", row_data)
-        self.update_grid_height(self.MCC_grid, row_data)
+        self.update_grid_height(self.MCC_grid, row_data,default_height=6)
         self.grid_compressed = True

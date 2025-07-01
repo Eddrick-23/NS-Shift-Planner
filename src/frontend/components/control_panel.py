@@ -3,14 +3,14 @@ import requests
 from typing import Literal
 from src.frontend.components.grid_event_handler import GridEventHandler
 from src.frontend.components.hour_grid_handler import HourGridHandler
-from src.frontend.components.upload_file import create_upload_button
+from src.frontend.components.upload_file import UploadUI
 import asyncio
 
 
 class ControlPanelHandler:
     INVALID_NAMES = ["MCC", "HCC1", "HCC2", "0", "TOTAL"]
 
-    def __init__(self):
+    def __init__(self, session_id: str):
         self.radio_value = "MCC"
         self.radio_options = ["MCC", "HCC1", "HCC2"]
         self.TIMEOUT = 10
@@ -18,6 +18,7 @@ class ControlPanelHandler:
         self.REMOVE_NAME_URL = "http://localhost:8000/grid/remove/"
         self.DOWNLOAD_URL = "http://localhost:8000/download/"
         self.RESET_URL = "http://localhost:8000/reset-all/"
+        self.HEADERS = {"X-Session-ID": session_id}
         # Store references to UI elements
         self.grid_option = None
         self.name_input = None
@@ -35,7 +36,7 @@ class ControlPanelHandler:
                 ui.element("q-fab-action").props("icon=book color=teal-8").tooltip(
                     "Read Me"
                 ).on("click", lambda: self.handle_read_me_redirect())
-                create_upload_button()
+                UploadUI(headers=self.HEADERS)
                 ui.element("q-fab-action").props("icon=download color=teal-8").tooltip(
                     "Download"
                 ).on("click", self.handle_download)
@@ -158,7 +159,9 @@ class ControlPanelHandler:
             ui.notify("Select a grid")
             return
         body = {"grid_name": target_grid, "name": name}
-        response = await run.io_bound(requests.post, self.ADD_NAME_URL, json=body)
+        response = await run.io_bound(
+            requests.post, self.ADD_NAME_URL, json=body, headers=self.HEADERS
+        )
         await self.trigger_handler_update(target_grid)
         ui.notify(response.json()["detail"])
 
@@ -189,7 +192,9 @@ class ControlPanelHandler:
             ui.notify("Select a grid")
             return
         body = {"grid_name": target_grid, "name": name}
-        response = await run.io_bound(requests.delete, self.REMOVE_NAME_URL, json=body)
+        response = await run.io_bound(
+            requests.delete, self.REMOVE_NAME_URL, json=body, headers=self.HEADERS
+        )
         await self.trigger_handler_update(target_grid)
         ui.notify(response.json()["detail"])
 
@@ -197,7 +202,9 @@ class ControlPanelHandler:
         ui.navigate.to("https://github.com/Eddrick-23/NS-Shift-Planner", new_tab=True)
 
     async def handle_download(self):
-        response = await run.io_bound(requests.post, self.DOWNLOAD_URL)
+        response = await run.io_bound(
+            requests.post, self.DOWNLOAD_URL, headers=self.HEADERS
+        )
         if response.status_code != 200:
             ui.notify("Error in exporting project", type="negative")
             return
@@ -205,7 +212,9 @@ class ControlPanelHandler:
 
     async def handle_reset(self):
         async def handle_reset_confirm():
-            response = await run.io_bound(requests.delete, self.RESET_URL)
+            response = await run.io_bound(
+                requests.delete, self.RESET_URL, headers=self.HEADERS
+            )
             if response.status_code != 200:
                 ui.notify("Reset error occured", type="negative")
                 return
