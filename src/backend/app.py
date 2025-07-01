@@ -290,3 +290,5 @@ async def upload_file(request:Request, manager:GridManager = Depends(get_manager
 async def reset_all(request:Request,manager:GridManager = Depends(get_manager)):
     app.state.manager_cache[request.headers["X-Session-ID"]] = GridManager()
     return JSONResponse(status_code=status.HTTP_200_OK, content={"detail":"data resetted"})
+
+
