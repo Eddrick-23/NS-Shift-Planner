@@ -1,8 +1,11 @@
 import io
+import asyncio
 import logging
+from datetime import datetime, timezone
 from typing import cast
-from fastapi import FastAPI,Header, Depends, status, HTTPException, Request
-from fastapi.responses import JSONResponse,StreamingResponse, Response
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Header, Depends, status, HTTPException, Request
+from fastapi.responses import JSONResponse, StreamingResponse, Response
 from pydantic import BaseModel
 from cachetools import LRUCache
 from typing import Literal
@@ -12,17 +15,87 @@ from firebase_admin import credentials, firestore
 from src.backend.config import config
 from src.backend.internal.grid_manager import GridManager, GridHandler
 import src.backend.internal.time_blocks as tb
-#cred_path = config.GOOGLE_APPLICATION_CREDENTIALS
-# cred = credentials.Certificate(cred_path)
-# firebase_admin.initialize_app(cred)
+from src.backend.internal.lru_cache import CustomLRUCache
 
-# # Initialize Firestore client
-# db = firestore.client()
-logging.basicConfig(level=logging.DEBUG,force=True)
-app = FastAPI()
-app.state.manager_cache = LRUCache(maxsize=config.LRU_CACHE_SIZE)
+cred_path = config.GOOGLE_APPLICATION_CREDENTIALS
+cred = credentials.Certificate(cred_path)
+firebase_admin.initialize_app(cred)
 
-def get_manager(x_session_id:str = Header(...)) -> GridManager:
+# Initialize Firestore client
+db = firestore.client()
+cache = CustomLRUCache(config.LRU_CACHE_SIZE, db)
+logging.basicConfig(level=logging.DEBUG, force=True)
+
+
+async def prune_db(db, interval_days: int):
+    """
+    Periodically scans Firestore and deletes documents older than 'expireAt'.
+
+    Args:
+        db: Firestore client
+        interval_days (int): How often to run the scan (in days)
+    """
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            logging.info(f"[{now}] Running Firestore cleanup")
+
+            # Use FieldFilter to avoid the positional argument warning
+            from google.cloud.firestore import FieldFilter
+
+            docs = (
+                db.collection("projects")
+                .where(filter=FieldFilter("expireAt", "<", now))
+                .stream()
+            )
+
+            deleted_count = 0
+            # Use regular for loop, not async for - Firestore stream() is synchronous
+            for doc in docs:
+                doc.reference.delete()
+                deleted_count += 1
+
+            logging.info(f"Deleted {deleted_count} expired documents.")
+
+        except Exception as e:
+            logging.error(f"Error during Firestore cleanup: {e}")
+
+        # Wait interval before next scan
+        await asyncio.sleep(interval_days * 86400)
+
+
+async def scan_cache(cache: CustomLRUCache, interval: int):
+    """
+    Scans through cache and syncs required data to firestore
+
+    Args:
+        cache: CustomLRUCache class instance
+        inverval (int): How often to scan through cache(minutes)
+    """
+    for session_id, grid_manager in cache.items():
+        if not grid_manager.requires_sync:
+            continue
+        cache.sync_to_firebase(session_id, grid_manager)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task1 = asyncio.create_task(prune_db(db, config.PRUNE_DB_INTERVAL))
+    task2 = asyncio.create_task(scan_cache(cache, config.SCAN_CACHE_INTERVAL))
+    logging.info("Background tasks started")
+    yield
+
+    task1.cancel()
+    task2.cancel()
+    logging.info("Shutting down background tasks")
+
+
+app = FastAPI(lifespan=lifespan)
+app.state.manager_cache = cache
+app.state.db = db
+
+
+def get_manager(x_session_id: str = Header(...)) -> GridManager:
     logging.debug(x_session_id)
     cache = app.state.manager_cache
     cache = cast(LRUCache, cache)
@@ -32,12 +105,13 @@ def get_manager(x_session_id:str = Header(...)) -> GridManager:
     manager = GridManager()
     cache[x_session_id] = manager
     logging.debug("Cache miss,Creating new manager")
+    manager.requires_sync = True
     return manager
 
 
 # Request body schema
 class UploadRequest(BaseModel):
-    user_id: str
+    session_id: str
     project_name: str
     data: dict
 
@@ -65,19 +139,11 @@ class AllocateShiftRequest(AddOrRemoveRequest):
     time_block: str
 
 
-# @app.post("/upload/")
-# async def upload_data(request: UploadRequest):
-#     doc_id = f"{request.user_id}_{request.project_name}" #document name
-#     doc_ref = db.collection("projects").document(doc_id) #folder("collection") name
-
-#     # Upload or overwrite the data using .set()
-#     doc_ref.set({
-#         "user_id": request.user_id,
-#         "project_name": request.project_name,
-#         "data": request.data
-#     })
-
-#     return {"message": "Data uploaded successfully"}
+@app.get("/cached_items/")
+async def get_num_cached_items():
+    cache: CustomLRUCache = app.state.manager_cache
+    response = {"current_size": cache.currsize, "num_items": len(cache.items())}
+    return JSONResponse(status_code=status.HTTP_200_OK, content=response)
 
 
 @app.post("/grid/")  # get all grid data for a specified day
@@ -107,19 +173,26 @@ async def get_grid(
         result[key] = aggrid_format
     return JSONResponse(status_code=status.HTTP_200_OK, content=result)
 
+
 @app.post("/grid/compressed")
-async def get_grid_compressed(request:FetchGridRequest, manager:GridManager=Depends(get_manager)):
+async def get_grid_compressed(
+    request: FetchGridRequest, manager: GridManager = Depends(get_manager)
+):
     day = request.day
     if day != 3:
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"detail": "Call for day 3 grid only"})
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": "Call for day 3 grid only"},
+        )
     handler = manager.all_grids["DAY3:MCC"]
     handler = cast(GridHandler, handler)
     blocks_to_remove = manager.format_keys(tb.HALF_DAY_BLOCK_MAP[day], handler.bit_mask)
     formatted_df = handler.generate_formatted_dataframe(blocks_to_remove)
     aggrid_format_compressed = handler.df_to_aggrid_compressed(formatted_df)
 
-    return JSONResponse(status_code=status.HTTP_200_OK, content=aggrid_format_compressed)
-
+    return JSONResponse(
+        status_code=status.HTTP_200_OK, content=aggrid_format_compressed
+    )
 
 
 @app.post("/grid/add/")
@@ -222,7 +295,7 @@ async def allocate_shift(
 
 
 @app.get("/hours/")
-async def get_all_hours(request:Request,manager: GridManager = Depends(get_manager)):
+async def get_all_hours(request: Request, manager: GridManager = Depends(get_manager)):
     row_data, pinned_row_data = manager.get_all_hours()
     response = {
         "columnDefs": [
@@ -258,25 +331,27 @@ async def get_all_hours(request:Request,manager: GridManager = Depends(get_manag
             },
         ],
         "rowData": row_data,
-        "pinned_bottom_row": pinned_row_data
+        "pinned_bottom_row": pinned_row_data,
     }
     return response
 
+
 @app.post("/download/")
-async def save_as_file(request:Request,manager:GridManager = Depends(get_manager)):
+async def save_as_file(request: Request, manager: GridManager = Depends(get_manager)):
     try:
         zip_bytes = manager.serialise_to_zip()
         return StreamingResponse(
-                io.BytesIO(zip_bytes),
-                media_type="application/zip",
-                headers={"Content-Disposition": "attachment; filename=planning.zip"}
-            )
-    
+            io.BytesIO(zip_bytes),
+            media_type="application/zip",
+            headers={"Content-Disposition": "attachment; filename=planning.zip"},
+        )
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed:{str(e)}")
 
+
 @app.post("/upload/")
-async def upload_file(request:Request, manager:GridManager = Depends(get_manager)):
+async def upload_file(request: Request, manager: GridManager = Depends(get_manager)):
     try:
         zip_bytes = await request.body()
         manager_instance = GridManager.deserialise_from_zip(zip_bytes)
@@ -284,9 +359,17 @@ async def upload_file(request:Request, manager:GridManager = Depends(get_manager
         return JSONResponse(status_code=status.HTTP_200_OK, content={"detail": "ok"})
     except Exception as e:
         logging.debug(f"{str(e)}")
-        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"detail":"Internal server error: likely invalid/corrupted zip file"})
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "detail": "Internal server error: likely invalid/corrupted zip file"
+            },
+        )
+
 
 @app.delete("/reset-all/")
-async def reset_all(request:Request,manager:GridManager = Depends(get_manager)):
+async def reset_all(request: Request, manager: GridManager = Depends(get_manager)):
     app.state.manager_cache[request.headers["X-Session-ID"]] = GridManager()
-    return JSONResponse(status_code=status.HTTP_200_OK, content={"detail":"data resetted"})
+    return JSONResponse(
+        status_code=status.HTTP_200_OK, content={"detail": "data resetted"}
+    )

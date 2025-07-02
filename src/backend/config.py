@@ -13,6 +13,8 @@ class Config:
             "GOOGLE_APPLICATION_CREDENTIALS"
         )
         self.LRU_CACHE_SIZE = int(self.get_variable("LRU_CACHE_SIZE"))
+        self.PRUNE_DB_INTERVAL = int(self.get_variable("PRUNE_DB_INTERVAL"))
+        self.SCAN_CACHE_INTERVAL = int(self.get_variable("SCAN_CACHE_INTERVAL"))
         logging.info("Backend configs loaded")
 
     def get_variable(self, key: str) -> str:

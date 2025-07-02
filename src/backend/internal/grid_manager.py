@@ -12,6 +12,7 @@ class GridManager:
     """
 
     def __init__(self):
+        self.requires_sync = True
         self.all_grids = {}
         self.setup_grid_handlers()
         self.existing_names = {"DAY1": set(), "DAY2": set(), "DAY3": set()}
@@ -141,11 +142,14 @@ class GridManager:
         handler = self.all_grids[target_grid]
         handler = cast(GridHandler, handler)
         name_exists = False
+        #check if name exists
         for names in self.existing_names.values():
             if name in names:
                 name_exists = True
                 break
+        #name no longer exists, remove all entry of this name
         if not name_exists:
+            __update_day_hours(handler.day,name,0)
             self.all_hours.pop(name, None)
             return
         if not handler.name_exists(name):  # name has been removed
@@ -181,7 +185,7 @@ class GridManager:
             }
             zip_file.writestr("manager_info.json", json.dumps(manager_info))
             for key, handler in self.all_grids.items():
-                key = key.replace(":","_")
+                key = key.replace(":", "_")
                 handler = cast(GridHandler, handler)
                 metadata, df_bytes = handler.serialise_for_storage()
 
@@ -204,6 +208,7 @@ class GridManager:
         with zipfile.ZipFile(io.BytesIO(zip_bytes), "r") as zip_file:
             # Read manifest
             manager_data = json.loads(zip_file.read("manager_info.json").decode())
+            instance.requires_sync=True
             instance.all_hours = manager_data["all_hours"]
             instance.existing_names = {
                 k: set(v) for k, v in manager_data["existing_names"].items()
@@ -211,7 +216,7 @@ class GridManager:
             instance.all_grids = {}
 
             for key in manager_data["handler_keys"]:
-                folder = key.replace(":","_")
+                folder = key.replace(":", "_")
                 metadata_filename = f"handlers/{folder}/metadata.json"
                 df_parquet_filename = f"handlers/{folder}/dataframe.parquet"
                 metadata_json = json.loads(zip_file.read(metadata_filename).decode())
@@ -219,6 +224,6 @@ class GridManager:
                 handler_instance = GridHandler.deserialise_from_storage(
                     metadata_json, df_bytes
                 )
-                key.replace("_",":")
+                key.replace("_", ":")
                 instance.all_grids[key] = handler_instance
         return instance
