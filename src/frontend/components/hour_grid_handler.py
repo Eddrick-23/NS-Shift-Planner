@@ -1,10 +1,10 @@
 from nicegui import run, ui
 import requests
-
+from src.frontend.api.urls_and_keys import ENDPOINTS
 
 class HourGridHandler:
     def __init__(self, session_id: str):
-        self.FETCH_HOUR_DATA_URL = "http://localhost:8000/hours/"
+        self.FETCH_HOUR_DATA_URL = ENDPOINTS["HOUR_DATA"] 
         self.HEADERS = {"X-Session-ID": session_id}
         self.grid = None
 

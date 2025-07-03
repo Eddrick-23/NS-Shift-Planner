@@ -1,16 +1,23 @@
-#### Build and Run API in container
+### Build and run in container
+#### API
 ```
 docker build -t planner-api -f src/backend/Dockerfile .
 ```
 ```
 docker run --name plannerAPI -p 8000:8000 planner-api
 ```
+#### Frontend
+```
+docker build -t nicegui -f src/frontend/Dockerfile
+```
+```
+docker run --name nicegui -f src/frontend/Dockerfile
+```
+
 
 
 #### Docker compose
-- Runs FastApi 
-- Runs Redis Cache
-- Runs Redis insight(gui tool) <br>
+- Runs FastApi backend and NiceGUI frontend
 __Run Service__
     ```
     docker compose up -d

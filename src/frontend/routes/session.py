@@ -98,9 +98,8 @@ async def session_page():
     with container3:
         grid_handler_3 = GridEventHandler(day=3, session_id=SESSION_ID)
         await grid_handler_3.generate_grids()
+    hour_grid_handler = HourGridHandler(session_id=SESSION_ID)
     with left_drawer:
-        hour_grid_handler = HourGridHandler(session_id=SESSION_ID)
-        # hour_grid_handler.grid.classes("w-full")
         await hour_grid_handler.create_hour_grid()
 
     grid_handler_1.add_hour_grid_handler(hour_grid_handler)

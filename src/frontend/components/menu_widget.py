@@ -1,14 +1,15 @@
 from nicegui import ui, run
 import requests
 from src.frontend.components.upload_file import UploadUI
+from src.frontend.api.urls_and_keys import ENDPOINTS,SOURCE_CODE_URL
 
 
 class MenuWidget:
     def __init__(self, session_id):
         self.HEADERS = {"X-Session-ID": session_id}
-        self.DOWNLOAD_URL = "http://localhost:8000/download/"
-        self.RESET_URL = "http://localhost:8000/reset-all/"
-        self.SOURCE_CODE_URL = "https://github.com/Eddrick-23/NS-Shift-Planner"
+        self.DOWNLOAD_URL = ENDPOINTS["DOWNLOAD"]
+        self.RESET_URL = ENDPOINTS["RESET"]
+        self.SOURCE_CODE_URL = SOURCE_CODE_URL
 
     def create_menu_widget(self):
         with ui.element("q-fab").props("icon=menu direction=down").classes("w-full"):

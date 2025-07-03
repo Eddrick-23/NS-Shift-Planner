@@ -2,10 +2,7 @@ import requests
 from nicegui import ui, app, run
 from src.frontend.styles.css import custom_css
 from src.frontend.config import config
-
-SESSION_EXISTS_URL = f"http://{config.HOST_NAME}:{config.BACKEND_PORT}/session_exists/"
-SOURCE_CODE_URL = "https://github.com/Eddrick-23/NS-Shift-Planner"
-SESSION_ID_KEY = "session_id"
+from src.frontend.api.urls_and_keys import ENDPOINTS, SESSION_ID_KEY, SOURCE_CODE_URL
 
 
 def built_with_component():
@@ -48,7 +45,7 @@ async def handle_resume_session(session_id: str):
         return
     # ui.notify(session_id)
     response = await run.io_bound(
-        requests.get, SESSION_EXISTS_URL, params={"session_id": session_id}
+        requests.get, ENDPOINTS["SESSION_EXISTS"], params={"session_id": session_id}
     )
     if response.status_code != 200:
         ui.notify("Error in validating session ID", type="negative")
@@ -83,25 +80,63 @@ def landing():
                 )
                 ui.label("Welcome").classes("text-4xl font-bold")
             with ui.element("div").classes("w-full h-[500px] mb-20 mt-20"):
-                with ui.splitter(value=35).classes('w-full h-full') as splitter:
+                with ui.splitter(value=35).classes("w-full h-full") as splitter:
                     with splitter.before:
-                        with ui.tabs().props('vertical').classes('w-full h-full') as tabs:
-                            version = ui.tab('Version Logs', icon='commit')
-                            features = ui.tab('Features', icon='star')
-                            tips = ui.tab('Pro tips', icon='lightbulb')
+                        with (
+                            ui.tabs().props("vertical").classes("w-full h-full") as tabs
+                        ):
+                            version = ui.tab("Version Logs", icon="commit")
+                            features = ui.tab("Features", icon="star")
+                            tips = ui.tab("Pro tips", icon="lightbulb")
                     with splitter.after:
-                        with ui.tab_panels(tabs, value=version) \
-                                .props('vertical').classes('w-full h-full'):
+                        with (
+                            ui.tab_panels(tabs, value=version)
+                            .props("vertical")
+                            .classes("w-full h-full")
+                        ):
                             with ui.tab_panel(version):
-                                title = ui.label(f'Version {config.VERSION}').classes('text-h4 hover:underline').tooltip("Click to see source code")
-                                title.on("click", lambda: ui.navigate.to(SOURCE_CODE_URL,new_tab=True))
-                                ui.label('version content')
+                                title = (
+                                    ui.label(f"Version {config.VERSION}")
+                                    .classes("text-h4 hover:underline")
+                                    .tooltip("Click to see source code")
+                                )
+                                title.on(
+                                    "click",
+                                    lambda: ui.navigate.to(
+                                        SOURCE_CODE_URL, new_tab=True
+                                    ),
+                                )
+                                ui.markdown("""
+                                **This app is currently in beta and may be unstable.**
+
+                                Start a new session or continue a previous session.
+
+                                You can find the session ID in the **bottom left** of the page sidebar.
+
+                                Sessions unused for **24 hours** or more are deleted — download as a ZIP file if needed.
+
+                                Read the **Pro Tips** for more.
+                                """)
+
                             with ui.tab_panel(features):
-                                ui.label('star').classes('text-h4')
-                                ui.label('Content of features')
+                                ui.label("Interactive grid UI").classes("text-h6")
+                                ui.image("src/frontend/assets/shift_allocate_example.gif")
+                                ui.label("Resume past sessions with a session ID").classes("text-h6")
+                                ui.image("src/frontend/assets/resume_session_example.gif")
+                                ui.label("Use keybinds to toggle buttons quickly").classes("text-h6")
+                                # ui.image()
+
                             with ui.tab_panel(tips):
-                                ui.label('lightbulb').classes('text-h4')
-                                ui.label('Content of tips')
+                                # ui.label("lightbulb").classes("text-h4")
+                                with ui.row().classes('w-full justify-center'):
+                                    ui.label("Refer to the keybinds and FAQ on the bottom right of the page")
+                                    ui.image("src/frontend/assets/help_buttons.png").classes("h-20 w-60")
+                                    ui.label("Find the menu bar for more controls like saving, uploading or resetting")
+                                    ui.image("src/frontend/assets/menu.png").classes("h-60 w-60 center")
+                                    ui.label("Copy your session id to clipboard and save it for later use")
+                                    ui.image("src/frontend/assets/session_id.png").classes("h-30 w-60")
+
+
                 # Fixed bottom-left container for logos + text
             built_with_component()
 

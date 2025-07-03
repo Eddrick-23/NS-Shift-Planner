@@ -3,6 +3,7 @@ import requests
 from typing import Literal
 from src.frontend.components.grid_event_handler import GridEventHandler
 from src.frontend.components.hour_grid_handler import HourGridHandler
+from src.frontend.api.urls_and_keys import ENDPOINTS
 import asyncio
 
 
@@ -13,8 +14,8 @@ class ControlPanelHandler:
         self.radio_value = "MCC"
         self.radio_options = ["MCC", "HCC1", "HCC2"]
         self.TIMEOUT = 10
-        self.ADD_NAME_URL = "http://localhost:8000/grid/add/"
-        self.REMOVE_NAME_URL = "http://localhost:8000/grid/remove/"
+        self.ADD_NAME_URL = ENDPOINTS["ADD_NAME"]
+        self.REMOVE_NAME_URL = ENDPOINTS["REMOVE_NAME"]
         self.HEADERS = {"X-Session-ID": session_id}
         # Store references to UI elements
         self.grid_option = None

@@ -2,13 +2,14 @@ import requests
 from nicegui import run, ui
 from nicegui.events import KeyEventArguments
 from src.frontend.components.hour_grid_handler import HourGridHandler
+from src.frontend.api.urls_and_keys import ENDPOINTS
 
 
 class GridEventHandler:
     def __init__(self, day: int, session_id: str):
-        self.FETCH_GRID_DATA_URL = "http://localhost:8000/grid/"
-        self.FETCH_COMPRESSED_GRID_DATA_URL = "http://localhost:8000/grid/compressed"
-        self.ALLOCATE_SHIFT_URL = "http://localhost:8000/grid/allocate/"
+        self.FETCH_GRID_DATA_URL = ENDPOINTS["FETCH_GRID"]
+        self.FETCH_COMPRESSED_GRID_DATA_URL = ENDPOINTS["FETCH_GRID_COMPRESSED"]
+        self.ALLOCATE_SHIFT_URL = ENDPOINTS["ALLOCATE_SHIFT"]
         self.HEADERS = {"X-Session-ID": session_id}
         self.left_half = False
         self.right_half = False
