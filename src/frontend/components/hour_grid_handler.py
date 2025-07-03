@@ -18,6 +18,9 @@ class HourGridHandler:
                 "rowData": data["rowData"],
                 "pinnedBottomRowData": data["pinned_bottom_row"],
                 "domLayout": "autoHeight",
+                "defaultColDef": {
+                    "resizable": True,
+                },
             }
         ).classes("w-full")
 

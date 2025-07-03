@@ -105,7 +105,7 @@ class GridManager:
         """
         return name in self.existing_names[f"DAY{day}"]
 
-    def get_all_hours(self) -> list[dict]:
+    def get_all_hours(self) -> tuple[list,list]:
         """
         Return data from all_hours attribute as rowData for aggrid
         """

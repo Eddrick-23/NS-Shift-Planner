@@ -1,17 +1,19 @@
 import io
-import asyncio
+import base64
 import logging
+import asyncio
+import time
 from datetime import datetime, timezone
 from typing import cast
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Header, Depends, status, HTTPException, Request
-from fastapi.responses import JSONResponse, StreamingResponse, Response
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from cachetools import LRUCache
 from typing import Literal
-from dotenv import load_dotenv
 import firebase_admin
 from firebase_admin import credentials, firestore
+from google.cloud.firestore import Client
 from src.backend.config import config
 from src.backend.internal.grid_manager import GridManager, GridHandler
 import src.backend.internal.time_blocks as tb
@@ -22,20 +24,20 @@ cred = credentials.Certificate(cred_path)
 firebase_admin.initialize_app(cred)
 
 # Initialize Firestore client
-db = firestore.client()
+db: Client = firestore.client()
 cache = CustomLRUCache(config.LRU_CACHE_SIZE, db)
 logging.basicConfig(level=logging.DEBUG, force=True)
 
 
-async def prune_db(db, interval_days: int):
+async def prune_db(db: Client, interval_hours: int):
     """
     Periodically scans Firestore and deletes documents older than 'expireAt'.
 
     Args:
         db: Firestore client
-        interval_days (int): How often to run the scan (in days)
+        interval_days (int): How often to run the scan (in hours)
     """
-    while True:
+    while True:  # run immediatelly on app startup to remove unused items in db
         try:
             now = datetime.now(timezone.utc)
             logging.info(f"[{now}] Running Firestore cleanup")
@@ -58,13 +60,25 @@ async def prune_db(db, interval_days: int):
             logging.info(f"Deleted {deleted_count} expired documents.")
 
         except Exception as e:
-            logging.error(f"Error during Firestore cleanup: {e}")
+            logging.error("Error during Firestore cleanup: %s", e)
 
         # Wait interval before next scan
-        await asyncio.sleep(interval_days * 86400)
+        await asyncio.sleep(interval_hours * 3600)
 
 
-async def scan_cache(cache: CustomLRUCache, interval: int):
+def load_existing_ids(db: Client):
+    projects_ref = db.collection("projects")
+    docs = projects_ref.stream()
+
+    all_ids = set()
+    for doc in docs:
+        file_name = doc.id
+        session_id = file_name.partition(":")[2]
+        all_ids.add(session_id)
+    return all_ids
+
+
+async def scan_cache(cache: CustomLRUCache, interval: int, run_once: bool = False):
     """
     Scans through cache and syncs required data to firestore
 
@@ -72,27 +86,76 @@ async def scan_cache(cache: CustomLRUCache, interval: int):
         cache: CustomLRUCache class instance
         inverval (int): How often to scan through cache(minutes)
     """
-    for session_id, grid_manager in cache.items():
-        if not grid_manager.requires_sync:
-            continue
-        cache.sync_to_firebase(session_id, grid_manager)
+    synced_sessions = 0
+    while True:
+        if not run_once:
+            await asyncio.sleep(interval * 60)  # no need to run on app startup
+        logging.info("Starting Cache Scan")
+        start_time = time.time()
+        for session_id, grid_manager in cache.items():
+            if not grid_manager.requires_sync:
+                continue
+            try:
+                cache.sync_to_firebase(session_id, grid_manager)
+                logging.info("Synced session: %s", session_id)
+                synced_sessions += 1
+            except Exception as e:
+                logging.error("Error during cache scan: %s", e)
+        logging.info(
+            "Cache scan complete, synced %s sessions. Duration: %ss.",
+            synced_sessions,
+            time.time() - start_time,
+        )
+        if run_once:
+            break
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     task1 = asyncio.create_task(prune_db(db, config.PRUNE_DB_INTERVAL))
+    loaded_ids = load_existing_ids(db)
+    app.state.all_ids = loaded_ids
     task2 = asyncio.create_task(scan_cache(cache, config.SCAN_CACHE_INTERVAL))
     logging.info("Background tasks started")
+
     yield
 
+    # begin shutdown
+    logging.info("Shut down background tasks")
     task1.cancel()
     task2.cancel()
-    logging.info("Shutting down background tasks")
+    try:
+        await asyncio.gather(task1, task2)
+    except asyncio.CancelledError:
+        pass  # expected during shutdown
+    # run cache scan one more time to sync all data to firestore
+    if config.ENVIRONMENT != "DEV": #don't save in dev to avoid overloading database
+        logging.info("Syncing changes before shutdown")
+        await scan_cache(cache, config.SCAN_CACHE_INTERVAL, run_once=True)
+    logging.info("Shutdown Complete")
 
 
 app = FastAPI(lifespan=lifespan)
 app.state.manager_cache = cache
 app.state.db = db
+
+
+def restore_from_database(session_id: str) -> GridManager:
+    """
+    Restore GridManager Instance using saved data in firestore
+
+    Args:
+        session_id(str): session_id to
+
+    Returns:
+        GridManager class instance
+    """
+    doc_ref = db.collection("projects").document(f"session_id:{session_id}")
+    doc = doc_ref.get()
+    data = doc.to_dict()
+    decoded_bytes = base64.b64decode(data.get("data"))
+    manager = GridManager.deserialise_from_zip(decoded_bytes)
+    return manager
 
 
 def get_manager(x_session_id: str = Header(...)) -> GridManager:
@@ -101,10 +164,17 @@ def get_manager(x_session_id: str = Header(...)) -> GridManager:
     cache = cast(LRUCache, cache)
     if x_session_id in cache:
         logging.debug("Cache hit, returning cached manager")
-        return cache[x_session_id]
-    manager = GridManager()
+        manager = cache[x_session_id]
+        manager.requires_sync = True
+        return manager
+    if x_session_id in app.state.all_ids:  # check if can load from firebase
+        manager = restore_from_database(x_session_id)
+        logging.debug("Restored from database")
+    else:  # create new manager
+        manager = GridManager()
+        logging.debug("Cache miss,Creating new manager")
+        app.state.all_ids.add(x_session_id)
     cache[x_session_id] = manager
-    logging.debug("Cache miss,Creating new manager")
     manager.requires_sync = True
     return manager
 
@@ -139,10 +209,28 @@ class AllocateShiftRequest(AddOrRemoveRequest):
     time_block: str
 
 
+@app.get("/all_ids/")
+def all_ids():
+    """
+    Load all existing session ids on startup
+
+    Args:
+        db: Firestore client
+    """
+
+    return {"data": list(app.state.all_ids)}
+
+
 @app.get("/cached_items/")
 async def get_num_cached_items():
     cache: CustomLRUCache = app.state.manager_cache
     response = {"current_size": cache.currsize, "num_items": len(cache.items())}
+    return JSONResponse(status_code=status.HTTP_200_OK, content=response)
+
+
+@app.get("/session_exists/")
+async def session_exists(session_id: str):
+    response = {"exists": session_id in app.state.all_ids}
     return JSONResponse(status_code=status.HTTP_200_OK, content=response)
 
 
@@ -302,7 +390,7 @@ async def get_all_hours(request: Request, manager: GridManager = Depends(get_man
             {
                 "headerName": "Name",
                 "field": "Name",
-                "width": 150,
+                "width": 100,
                 "suppressSizeToFit": True,
             },
             {

@@ -37,7 +37,7 @@ class CustomLRUCache(LRUCache):
             doc_id = f"session_id:{session_id}"
             doc_ref = self.firebase.collection("projects").document(doc_id)
             updated = datetime.now(timezone.utc)
-            expire_at = updated + timedelta(days=3)
+            expire_at = updated + timedelta(days=1)
 
             doc_ref.set(
                 {
@@ -45,6 +45,7 @@ class CustomLRUCache(LRUCache):
                     "expireAt": expire_at,
                     "data": encoded_zip,
                     "size": len(zip_bytes),
+                    "session_id":session_id
                 }
             )
             manager.requires_sync = False

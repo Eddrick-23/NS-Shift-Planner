@@ -21,5 +21,16 @@ custom_css = '''
     text-align: center;
     width: 100%;
 }
+
+@keyframes bounce-once {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.01) translateY(-1px); }
+  60%  { transform: scale(0.99) translateY(1px); }
+  100% { transform: scale(1) translateY(0); }
+}
+
+.bounce-hover:hover {
+  animation: bounce-once 0.4s ease;
+}
 </style>
 '''

@@ -3,7 +3,6 @@ import requests
 from typing import Literal
 from src.frontend.components.grid_event_handler import GridEventHandler
 from src.frontend.components.hour_grid_handler import HourGridHandler
-from src.frontend.components.upload_file import UploadUI
 import asyncio
 
 
@@ -16,8 +15,6 @@ class ControlPanelHandler:
         self.TIMEOUT = 10
         self.ADD_NAME_URL = "http://localhost:8000/grid/add/"
         self.REMOVE_NAME_URL = "http://localhost:8000/grid/remove/"
-        self.DOWNLOAD_URL = "http://localhost:8000/download/"
-        self.RESET_URL = "http://localhost:8000/reset-all/"
         self.HEADERS = {"X-Session-ID": session_id}
         # Store references to UI elements
         self.grid_option = None
@@ -30,20 +27,8 @@ class ControlPanelHandler:
         """
         Create control panel UI on the front end
         """
-        control_panel = ui.grid(columns=5).classes("w-full")
+        control_panel = ui.grid(columns=4).classes("w-full")
         with control_panel:
-            with ui.element("q-fab").props("icon=menu direction=down"):
-                ui.element("q-fab-action").props("icon=book color=teal-8").tooltip(
-                    "Read Me"
-                ).on("click", lambda: self.handle_read_me_redirect())
-                UploadUI(headers=self.HEADERS)
-                ui.element("q-fab-action").props("icon=download color=teal-8").tooltip(
-                    "Download"
-                ).on("click", self.handle_download)
-                ui.element("q-fab-action").props(
-                    "icon=restart_alt color=red-8"
-                ).tooltip("Reset").on("click", self.handle_reset)
-
             grid_options = {
                 "DAY1:MCC": "DAY1:MCC",
                 "DAY1:HCC1": "DAY1:HCC1",
@@ -64,7 +49,7 @@ class ControlPanelHandler:
                 ui.input(label="Name").props("clearable").classes("flex-1")
             ).props("outlined")
 
-            with ui.button_group():
+            with ui.button_group().classes("w-full min-w-0 shrink flex"):
                 ui.button(icon="add", on_click=self.handle_add).classes(
                     "flex-1"
                 ).tooltip("Add to grid")
@@ -74,7 +59,8 @@ class ControlPanelHandler:
 
             self.radio_group = (
                 ui.radio(options=self.radio_options, value=self.radio_value)
-                .props("inline size=lg")
+                .props("inline size=md")
+                .classes("mt-2")
                 .on_value_change(
                     lambda: self.set_grid_event_handler_location(self.radio_group.value)
                 )
@@ -198,43 +184,7 @@ class ControlPanelHandler:
         await self.trigger_handler_update(target_grid)
         ui.notify(response.json()["detail"])
 
-    def handle_read_me_redirect(self):
-        ui.navigate.to("https://github.com/Eddrick-23/NS-Shift-Planner", new_tab=True)
 
-    async def handle_download(self):
-        response = await run.io_bound(
-            requests.post, self.DOWNLOAD_URL, headers=self.HEADERS
-        )
-        if response.status_code != 200:
-            ui.notify("Error in exporting project", type="negative")
-            return
-        ui.download.content(response.content, "planning.zip")
-
-    async def handle_reset(self):
-        async def handle_reset_confirm():
-            response = await run.io_bound(
-                requests.delete, self.RESET_URL, headers=self.HEADERS
-            )
-            if response.status_code != 200:
-                ui.notify("Reset error occured", type="negative")
-                return
-            ui.run_javascript("location.reload();")
-
-        with ui.dialog() as dialog:
-            with ui.card():
-                ui.label("Reset All").style(
-                    "text-align: center; width: 100%; font-size: large"
-                )
-                ui.label("This action is irreversible!").style(
-                    "text-align: center; width: 100%;"
-                ).tailwind.text_color("red-600").font_weight("bold")
-                with ui.row():
-                    ui.button("Cancel").props("color=red").on_click(
-                        lambda: dialog.close()
-                    )
-                    ui.button("Confirm").on_click(handle_reset_confirm)
-
-        dialog.open()
 
 
 # Usage example:

@@ -394,5 +394,7 @@ def test_get_all_hours(manager_all_grid_with_name: "GridManager"):
         grid_handler.allocate_shift(
             location=grid_handler.location, time_block=time_block_2, name=name
         )
-    for hour_list in manager.get_all_hours().values():
+    
+    all_hour_data, _ =  manager.get_all_hours()
+    for hour_list in all_hour_data:
         assert sum(hour_list) == 1.0
