@@ -1,14 +1,12 @@
 [project]
-name = "ns-shift-planner"
+name = "ns-shift-planner-backend"
 version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
+description = "Shift planner backend service"
 requires-python = ">=3.13"
 dependencies = [
     "cachetools>=5.5.2",
     "fastapi[standard]>=0.115.12",
     "python-dotenv>=1.1.0",
-    "nicegui>=2.19.0",
     "bitarray>=3.4.2",
     "firebase-admin>=6.9.0",
     "google-cloud-firestore>=2.21.0",
