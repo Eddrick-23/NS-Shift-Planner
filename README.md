@@ -1,27 +1,49 @@
-### Build and run in container
-#### API
+<h1 align="center">Welcome to NS-Shift-Planner 👋</h1>
+<p>
+  <img alt="Version" src="https://img.shields.io/badge/version-1.0.0--beta-blue.svg?cacheSeconds=2592000" />
+</p>
+
+> Ns Planning app (Revamped from https://github.com/Eddrick-23/NS_SHIFT_PLANNER)
+
+## 🚀 Features
+
+- 🧩 **Interactive Grid UI**  
+  Easily view and manipulate shift data in a responsive, user-friendly grid.
+
+- ⚡ **Faster Grid Rendering with Ag-Grid**  
+  Uses the high-performance [Ag-Grid](https://www.ag-grid.com/) for efficient rendering
+
+- 🗂️ **Simple Session Management with Session IDs**  
+  Resume or share planning sessions using lightweight session identifiers.
+
+## Install
+### Install uv if not already installed
 ```
-docker build -t planner-api -f src/backend/Dockerfile .
-```
-```
-docker run --name plannerAPI -p 8000:8000 planner-api
-```
-#### Frontend
-```
-docker build -t nicegui -f src/frontend/Dockerfile
-```
-```
-docker run --name nicegui -f src/frontend/Dockerfile
+curl -Ls https://astral.sh/uv/install.sh | sh
 ```
 
+### Install dependencies
+```
+uv venv
+source .venv/bin/activate
+uv pip install -r uv.lock
+```
 
+### Run in a container
+```sh
+docker compose up -d
+```
 
-#### Docker compose
-- Runs FastApi backend and NiceGUI frontend
-__Run Service__
-    ```
-    docker compose up -d
-    ```
-Rebuild all services `docker compose up --build` <br>
-Rebuild one service `docker compose build planner-api` <br>
-Restart one service	`docker compose up -d planner-api` <br>
+## Author
+
+👤 **Eddrick**
+
+* Github: [@Eddrick-23](https://github.com/Eddrick-23)
+* LinkedIn: [@www.linkedin.com\/in\/eddrick-livando-8581ab228](https://linkedin.com/in/www.linkedin.com\/in\/eddrick-livando-8581ab228)
+
+## Show your support
+
+Give a ⭐️ if this project helped you!
+
+***
+_This README was generated with ❤️ by [readme-md-generator](https://github.com/kefranabg/readme-md-generator)_

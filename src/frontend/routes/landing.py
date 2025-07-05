@@ -77,16 +77,11 @@ def landing():
     with ui.element("div").classes("flex w-full h-screen"):
         # Left half
         with ui.element("div").classes("w-1/2 flex flex-col items-center"):
-            with ui.row().classes("pt-10 pb-10"):
-                # ui.image("src/frontend/assets/pNSxCpst0R.gif").classes("w-16 h-16 pb-3")
-                ui.html("""
-                <video autoplay loop muted playsinline class="w-20 h-20 object-contain">
-                <source src="/static/videos/pNSxCpst0R.webm" type="video/webm">
-                </video>
-                """).classes("-mt-3")
-                ui.label("Welcome").classes("text-4xl font-bold pt-2 mb-8")
+            with ui.row().classes("pt-10 pb-10 gap-1"):
+                ui.image("src/frontend/assets/Animation - 1751684303047.gif").classes("w-10 h-15 -mt-[1.6rem]")
+                ui.label("Welcome").classes("text-4xl font-bold mb-8")
             with ui.element("div").classes(
-                "w-full h-[500px] mb-10 mt-15 border border-gray-300"
+                "w-full max-h-[50vh] mb-10 mt-15 border border-gray-300 basis-3/5"
             ):
                 with ui.splitter(value=35).classes("w-full h-full") as splitter:
                     with splitter.before:
@@ -167,19 +162,20 @@ def landing():
                                         "src/frontend/assets/session_id.png"
                                     ).classes("h-30 w-60")
 
-                # Fixed bottom-left container for logos + text
-            built_with_component()
+            # Fixed bottom-left container for logos + text
+            with ui.element("div").classes("w-full flex-[2] basis-1/5"):
+                built_with_component()
 
         # Right half
         with ui.element("div").classes("w-1/2 flex items-center justify-center"):
             with ui.column().classes("w-full h-screen max-h-full overflow-hidden p-4"):
                 with ui.card(align_items="center") as card:
-                    card.classes("flex w-full flex-col h-full p-3")  # adjust size
+                    card.classes("flex flex-col items-center justify-center w-full h-full p-3")  # adjust size
                     card.classes(
                         "bounce-hover transition-all duration-300 ease-in-out rounded-xl"
                     )  # hover animation
                     ui.label("Start New Session").classes(
-                        "text-xl font-semibold mb-4 mt-4"
+                        "text-xl font-semibold mb-4"
                     )
                     ui.label("Create a fresh session with a new workspace").classes(
                         "text-gray-600 mb-4"
@@ -189,12 +185,12 @@ def landing():
                         "Create New Session", on_click=handle_new_session
                     ).classes("w-1/2 text-white font-medium py-2 px-4 rounded")
                 with ui.card(align_items="center") as card:
-                    card.classes("flex w-full flex-col h-full p-3 mb-6")  # adjust size
+                    card.classes("flex flex-col items-center justify-center w-full h-full p-3 mb-6")  # adjust size
                     card.classes(
                         "bounce-hover transition-all duration-300 ease-in-out rounded-xl"
                     )  # hover animation
                     ui.label("Resume With Session ID").classes(
-                        "text-xl font-semibold mb-4 mt-4"
+                        "text-xl font-semibold mb-4"
                     )
                     ui.label(
                         "Enter your session ID to continue where you left off"
