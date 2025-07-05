@@ -1,6 +1,7 @@
 import requests
 import os
 from nicegui import ui, app, run
+from fastapi.staticfiles import StaticFiles
 from src.frontend.styles.css import custom_css
 from src.frontend.config import config
 from src.frontend.api.urls_and_keys import ENDPOINTS, SESSION_ID_KEY, SOURCE_CODE_URL
@@ -13,21 +14,21 @@ def built_with_component():
             with ui.link("", target="https://nicegui.io", new_tab=True).tooltip(
                 "Because I don't want to deal with JS :)"
             ):
-                image = ui.image("src/frontend/assets/nicegui-seeklogo.svg").classes(
+                image = ui.image("/assets/nicegui-seeklogo.svg").classes(
                     "w-6"
                 )
                 image.classes(
                     "bounce-hover transition-all duration-300 ease-in-out rounded-xl"
                 )
             with ui.link("", target="https://fastapi.tiangolo.com/", new_tab=True):
-                image = ui.image("src/frontend/assets/fastapilogo.svg").classes(
+                image = ui.image("/assets/fastapilogo.svg").classes(
                     "w-6 h-6 mt-0.5"
                 )
                 image.classes(
                     "bounce-hover transition-all duration-300 ease-in-out rounded-xl"
                 )
             with ui.link("", target="https://firebase.google.com/", new_tab=True):
-                image = ui.image("src/frontend/assets/Logomark_Full Color.svg").classes(
+                image = ui.image("/assets/Logomark_Full Color.svg").classes(
                     "w-6 h-6 mt-0.5"
                 )
                 image.classes(
@@ -72,14 +73,14 @@ def landing():
       }
     </style>
     """)
-    static_path = os.path.abspath("src/frontend/static")
-    app.add_static_files("/static", static_path)
+    assets_path = os.path.join(os.path.dirname(__file__), '..', 'assets')
+    app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
     ui.add_css(custom_css)
     with ui.element("div").classes("flex w-full h-screen"):
         # Left half
         with ui.element("div").classes("w-1/2 flex flex-col items-center"):
             with ui.row().classes("pt-10 pb-10 gap-1"):
-                ui.image("src/frontend/assets/Animation - 1751684303047.gif").classes(
+                ui.image("/assets/Animation - 1751684303047.gif").classes(
                     "w-10 h-15 -mt-[1.6rem]"
                 )
                 ui.label("Welcome").classes("text-4xl font-bold mb-8")
@@ -130,18 +131,18 @@ def landing():
                                         "text-h6 underline"
                                     )
                                     ui.image(
-                                        "src/frontend/assets/shift_allocate_example.gif"
+                                        "/assets/shift_allocate_example.gif"
                                     )
                                     ui.label(
                                         "Resume past sessions with a session ID"
                                     ).classes("text-h6 underline")
                                     ui.image(
-                                        "src/frontend/assets/resume_session_example.gif"
+                                        "/assets/resume_session_example.gif"
                                     )
                                     ui.label(
                                         "Use keybinds to toggle buttons quickly"
                                     ).classes("text-h6 underline")
-                                    ui.image("src/frontend/assets/keybinds_example.gif")
+                                    ui.image("/assets/keybinds_example.gif")
 
                             with ui.tab_panel(tips):
                                 # ui.label("lightbulb").classes("text-h4")
@@ -150,19 +151,19 @@ def landing():
                                         "Refer to the keybinds and FAQ on the bottom right of the page"
                                     )
                                     ui.image(
-                                        "src/frontend/assets/help_buttons.png"
+                                        "/assets/help_buttons.png"
                                     ).classes("h-20 w-60")
                                     ui.label(
                                         "Find the menu bar for more controls like saving, uploading or resetting"
                                     )
-                                    ui.image("src/frontend/assets/menu.png").classes(
+                                    ui.image("/assets/menu.png").classes(
                                         "h-60 w-60 center"
                                     )
                                     ui.label(
                                         "Copy your session id to clipboard and save it for later use"
                                     )
                                     ui.image(
-                                        "src/frontend/assets/session_id.png"
+                                        "/assets/session_id.png"
                                     ).classes("h-30 w-60")
 
             # Fixed bottom-left container for logos + text
