@@ -1,12 +1,12 @@
 from nicegui import ui, run
 import requests
 from src.frontend.components.upload_file import UploadUI
-from src.frontend.api.urls_and_keys import ENDPOINTS,SOURCE_CODE_URL
+from src.frontend.api.urls_and_keys import ENDPOINTS,SOURCE_CODE_URL,API_KEY
 
 
 class MenuWidget:
     def __init__(self, session_id):
-        self.HEADERS = {"X-Session-ID": session_id}
+        self.HEADERS = {"X-Session-ID": session_id, "x-api-key":API_KEY}
         self.DOWNLOAD_URL = ENDPOINTS["DOWNLOAD"]
         self.RESET_URL = ENDPOINTS["RESET"]
         self.SOURCE_CODE_URL = SOURCE_CODE_URL

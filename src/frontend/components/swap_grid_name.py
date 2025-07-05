@@ -2,7 +2,7 @@ import asyncio
 import requests
 from nicegui import ui,run
 from src.frontend.components.grid_event_handler import GridEventHandler
-from src.frontend.api.urls_and_keys import ENDPOINTS
+from src.frontend.api.urls_and_keys import ENDPOINTS,API_KEY
 
 class SwapGridNameUI:
     GRID_OPTIONS = [
@@ -16,7 +16,7 @@ class SwapGridNameUI:
     ]
 
     def __init__(self,session_id:str):
-        self.HEADERS = {"X-Session-ID": session_id}
+        self.HEADERS = {"X-Session-ID": session_id, "x-api-key":API_KEY}
         self.grid_event_handlers = {}
         self.available_names = []
 

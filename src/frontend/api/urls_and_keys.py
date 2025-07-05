@@ -7,7 +7,8 @@ SESSION_ID_KEY = "session_id"
 
 SOURCE_CODE_URL = "https://github.com/Eddrick-23/NS-Shift-Planner"
  
-API_BASE = f"http://{config.HOST_NAME}:{config.BACKEND_PORT}/"
+API_BASE = config.BACKEND_URL
+API_KEY = config.API_KEY
 
 ENDPOINTS = {
     "SESSION_EXISTS": f"{API_BASE}/session_exists",

@@ -1,11 +1,11 @@
 from nicegui import run, ui
 import requests
-from src.frontend.api.urls_and_keys import ENDPOINTS
+from src.frontend.api.urls_and_keys import ENDPOINTS,API_KEY
 
 class HourGridHandler:
     def __init__(self, session_id: str):
         self.FETCH_HOUR_DATA_URL = ENDPOINTS["HOUR_DATA"] 
-        self.HEADERS = {"X-Session-ID": session_id}
+        self.HEADERS = {"X-Session-ID": session_id, "x-api-key": API_KEY}
         self.grid = None
 
     async def create_hour_grid(self):

@@ -4,7 +4,7 @@ from typing import Literal
 from nicegui import run, ui
 from nicegui.events import KeyEventArguments
 from src.frontend.components.hour_grid_handler import HourGridHandler
-from src.frontend.api.urls_and_keys import ENDPOINTS
+from src.frontend.api.urls_and_keys import ENDPOINTS,API_KEY
 
 
 class GridEventHandler:
@@ -13,7 +13,7 @@ class GridEventHandler:
         self.FETCH_COMPRESSED_GRID_DATA_URL = ENDPOINTS["FETCH_GRID_COMPRESSED"]
         self.ALLOCATE_SHIFT_URL = ENDPOINTS["ALLOCATE_SHIFT"]
         self.FETCH_GRID_NAMES_URL = ENDPOINTS["GRID_NAMES"]
-        self.HEADERS = {"X-Session-ID": session_id}
+        self.HEADERS = {"X-Session-ID": session_id, "x-api-key": API_KEY}
         self.left_half = False
         self.right_half = False
         self.day = day

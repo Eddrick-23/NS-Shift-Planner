@@ -4,7 +4,6 @@ from nicegui import ui, app, run
 from src.frontend.styles.css import custom_css
 from src.frontend.config import config
 from src.frontend.api.urls_and_keys import ENDPOINTS, SESSION_ID_KEY, SOURCE_CODE_URL
-from fastapi.staticfiles import StaticFiles
 
 
 def built_with_component():
@@ -45,9 +44,11 @@ async def handle_resume_session(session_id: str):
     if session_id == "":
         ui.notify("Enter a session id", type="negative")
         return
-    # ui.notify(session_id)
     response = await run.io_bound(
-        requests.get, ENDPOINTS["SESSION_EXISTS"], params={"session_id": session_id}
+        requests.get,
+        ENDPOINTS["SESSION_EXISTS"],
+        params={"session_id": session_id},
+        headers={"x-api-key": config.API_KEY},
     )
     if response.status_code != 200:
         ui.notify("Error in validating session ID", type="negative")
@@ -78,7 +79,9 @@ def landing():
         # Left half
         with ui.element("div").classes("w-1/2 flex flex-col items-center"):
             with ui.row().classes("pt-10 pb-10 gap-1"):
-                ui.image("src/frontend/assets/Animation - 1751684303047.gif").classes("w-10 h-15 -mt-[1.6rem]")
+                ui.image("src/frontend/assets/Animation - 1751684303047.gif").classes(
+                    "w-10 h-15 -mt-[1.6rem]"
+                )
                 ui.label("Welcome").classes("text-4xl font-bold mb-8")
             with ui.element("div").classes(
                 "w-full max-h-[50vh] mb-10 mt-15 border border-gray-300 basis-3/5"
@@ -170,13 +173,13 @@ def landing():
         with ui.element("div").classes("w-1/2 flex items-center justify-center"):
             with ui.column().classes("w-full h-screen max-h-full overflow-hidden p-4"):
                 with ui.card(align_items="center") as card:
-                    card.classes("flex flex-col items-center justify-center w-full h-full p-3")  # adjust size
+                    card.classes(
+                        "flex flex-col items-center justify-center w-full h-full p-3"
+                    )  # adjust size
                     card.classes(
                         "bounce-hover transition-all duration-300 ease-in-out rounded-xl"
                     )  # hover animation
-                    ui.label("Start New Session").classes(
-                        "text-xl font-semibold mb-4"
-                    )
+                    ui.label("Start New Session").classes("text-xl font-semibold mb-4")
                     ui.label("Create a fresh session with a new workspace").classes(
                         "text-gray-600 mb-4"
                     )
@@ -185,7 +188,9 @@ def landing():
                         "Create New Session", on_click=handle_new_session
                     ).classes("w-1/2 text-white font-medium py-2 px-4 rounded")
                 with ui.card(align_items="center") as card:
-                    card.classes("flex flex-col items-center justify-center w-full h-full p-3 mb-6")  # adjust size
+                    card.classes(
+                        "flex flex-col items-center justify-center w-full h-full p-3 mb-6"
+                    )  # adjust size
                     card.classes(
                         "bounce-hover transition-all duration-300 ease-in-out rounded-xl"
                     )  # hover animation

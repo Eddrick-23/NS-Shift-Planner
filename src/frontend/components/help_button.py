@@ -58,12 +58,6 @@ def create_help_button():
         3. Click the upload icon on the top right of the widget.
 
         _Once uploaded, your data will be processed and saved to your current session._
-                    
-                       
-                    
-
-
-                    
 
         ---
                     
