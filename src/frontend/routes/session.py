@@ -11,6 +11,7 @@ from src.frontend.components.help_button import (
     create_keybinds_button,
 )
 from src.frontend.components.compress_grid_switch import CompressSwitch
+from src.frontend.components.swap_grid_name import SwapGridNameUI
 from src.frontend.styles.css import custom_css
 
 SESSION_ID_KEY = "session_id"
@@ -53,8 +54,6 @@ def get_session() -> tuple[str, str]:
         session_id = str(uuid4())
         app.storage.tab[SESSION_ID_KEY] = session_id
         ui.notify(f"New session created:{session_id}")
-    else:
-        ui.notify(f"Loaded existing session:{session_id}")
     return session_id
 
 
@@ -62,6 +61,15 @@ def get_session() -> tuple[str, str]:
 async def session_page():
     await ui.context.client.connected()
     SESSION_ID = get_session()
+    # Add the CSS to the page
+    ui.add_head_html(custom_css)
+
+    #create grid handlers
+    grid_handler_1 = GridEventHandler(day=1, session_id=SESSION_ID)
+    grid_handler_2 = GridEventHandler(day=2, session_id=SESSION_ID)
+    grid_handler_3 = GridEventHandler(day=3, session_id=SESSION_ID)
+
+    #create left drawer
     with (
         ui.left_drawer(value=False)
         .classes("bg-gray-100 shadow-lg p-4")
@@ -70,6 +78,15 @@ async def session_page():
         menu_widget = MenuWidget(SESSION_ID)
         menu_widget.create_menu_widget()
         create_session_id_element(SESSION_ID)
+
+        #ui for swapping names
+        swap_name_ui = SwapGridNameUI(SESSION_ID)
+        swap_name_ui.grid_event_handlers["DAY1"] = grid_handler_1
+        swap_name_ui.grid_event_handlers["DAY2"] = grid_handler_2
+        swap_name_ui.grid_event_handlers["DAY3"] = grid_handler_3
+        await swap_name_ui.create_ui()
+
+
         with ui.element("div").classes("fixed bottom-2 right-0 z-50"):
             LeftDrawerToggle(left_drawer,direction="left")
     with ui.element("div").classes(
@@ -77,8 +94,6 @@ async def session_page():
     ): 
         LeftDrawerToggle(left_drawer,direction="right")
 
-    # Add the CSS to the page
-    ui.add_head_html(custom_css)
     # Control Panel
     control_panel_handler = ControlPanelHandler(session_id=SESSION_ID)
     ui.keyboard(on_key=lambda e: handle_key(e, control_panel_handler))
@@ -90,13 +105,10 @@ async def session_page():
     container3 = ui.row().classes("w-full gap -1")
 
     with container1:
-        grid_handler_1 = GridEventHandler(day=1, session_id=SESSION_ID)
         await grid_handler_1.generate_grids()
     with container2:
-        grid_handler_2 = GridEventHandler(day=2, session_id=SESSION_ID)
         await grid_handler_2.generate_grids()
     with container3:
-        grid_handler_3 = GridEventHandler(day=3, session_id=SESSION_ID)
         await grid_handler_3.generate_grids()
     hour_grid_handler = HourGridHandler(session_id=SESSION_ID)
     with left_drawer:

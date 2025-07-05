@@ -1,4 +1,6 @@
 import requests
+import asyncio
+from typing import Literal
 from nicegui import run, ui
 from nicegui.events import KeyEventArguments
 from src.frontend.components.hour_grid_handler import HourGridHandler
@@ -10,6 +12,7 @@ class GridEventHandler:
         self.FETCH_GRID_DATA_URL = ENDPOINTS["FETCH_GRID"]
         self.FETCH_COMPRESSED_GRID_DATA_URL = ENDPOINTS["FETCH_GRID_COMPRESSED"]
         self.ALLOCATE_SHIFT_URL = ENDPOINTS["ALLOCATE_SHIFT"]
+        self.FETCH_GRID_NAMES_URL = ENDPOINTS["GRID_NAMES"]
         self.HEADERS = {"X-Session-ID": session_id}
         self.left_half = False
         self.right_half = False
@@ -23,6 +26,9 @@ class GridEventHandler:
         self.MCC_grid = None
         self.HCC1_grid = None
         self.HCC2_grid = None
+
+        #track available names
+        self.names = {"MCC":[],"HCC1":[],"HCC2":[]}
 
         # Set up keyboard listener
         self.keyboard = ui.keyboard(on_key=self.handle_key, active=True)
@@ -46,6 +52,13 @@ class GridEventHandler:
             column_defs=json_data[f"DAY{self.day}:HCC2"]["columnDefs"],
             row_data=json_data[f"DAY{self.day}:HCC2"]["rowData"],
         ).classes("hidden" if not json_data[f"DAY{self.day}:HCC2"]["rowData"] else "")
+
+        #for file upload, need to update self.names attribute
+        no_names = all(not v for v in self.names.values())
+        if no_names:
+            await self.update_available_names(grid="MCC")
+            await self.update_available_names(grid="HCC1")  
+            await self.update_available_names(grid="HCC2")
 
     def create_grid(self, column_defs: list[dict], row_data: list[dict]):
         """
@@ -173,7 +186,13 @@ class GridEventHandler:
             ui.notify(f"Fetch grid data for day{day} failed.")
         return response.json()
 
-    def update_grid_height(self, grid: ui.aggrid, row_data: list[dict],extra_rows:int=0,default_height:int=4):
+    def update_grid_height(
+        self,
+        grid: ui.aggrid,
+        row_data: list[dict],
+        extra_rows: int = 0,
+        default_height: int = 4,
+    ):
         """
         Set new grid height
 
@@ -224,5 +243,25 @@ class GridEventHandler:
         row_data = data["rowData"]
         self.MCC_grid.run_grid_method("setGridOption", "columnDefs", column_defs)
         self.MCC_grid.run_grid_method("setGridOption", "rowData", row_data)
-        self.update_grid_height(self.MCC_grid, row_data,default_height=6)
+        self.update_grid_height(self.MCC_grid, row_data, default_height=6)
         self.grid_compressed = True
+
+    async def update_available_names(
+        self, grid: Literal["MCC", "HCC1", "HCC2"]
+    ) -> list[str]:
+        """
+        Update all names currently in the grid
+
+        Args:
+            grid(str): MCC, HCC1, HCC2 -> the grid location
+
+        Returns:
+            list of names in the grid
+        """
+        params = {"day": self.day, "grid": grid}
+        response = await run.io_bound(requests.get, self.FETCH_GRID_NAMES_URL, params=params, headers=self.HEADERS)
+        if response.status_code != 200:
+            ui.notify("Fetch grid name error", type="negative")
+            return []
+        self.names[grid] = response.json()["names"]
+        return response.json()["names"]

@@ -2,10 +2,12 @@ from nicegui import ui, run
 from nicegui import events
 import asyncio
 import requests
+from src.frontend.api.urls_and_keys import ENDPOINTS
+
 
 class UploadUI():
     def __init__(self,headers:dict):
-        self.UPLOAD_FILE_URL = "http://localhost:8000/upload/"
+        self.UPLOAD_FILE_URL = ENDPOINTS["UPLOAD"]
         self.headers = headers
         self.create_upload_button()
 

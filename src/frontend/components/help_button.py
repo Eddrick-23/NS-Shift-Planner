@@ -40,12 +40,12 @@ def create_help_button():
 
         ### 4) How do I save my work?
 
-        Your changes are automatically saved periodically.
+        Your changes are automatically saved periodically, just log back on with your session id.
 
         To manually save:
 
-        - Click the **Save** icon in the top-right corner.
-        - Or use the shortcut **Ctrl + S** (Cmd + S on Mac).
+        1. Open the sidebar and click on the menu bar on the top left.
+        2. Click the download button to download your project as a ZIP file.
 
         ---
 
@@ -53,11 +53,17 @@ def create_help_button():
 
         To upload:
 
-        1. Go to the **Upload** section in the menu.
-        2. Drag and drop your `.json` or `.xlsx` file.
-        3. Click **Upload** and confirm.
+        1. Open the sidebar and click on the menu bar on the top left.
+        2. Drag and drop or upload your ZIP file.
+        3. Click the upload icon on the top right of the widget.
 
-        _Once uploaded, your data will be processed and integrated into the system._
+        _Once uploaded, your data will be processed and saved to your current session._
+                    
+                       
+                    
+
+
+                    
 
         ---
                     

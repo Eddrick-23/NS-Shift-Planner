@@ -97,11 +97,13 @@ class ControlPanelHandler:
         """
         Update the target grid specified to render changes on frontend.<br>
         This method searches for the GridEventHandler containing the target grid, then updates the grid.
+        This method also updates the GridEventHandler
 
         Args:
             target_grid (str): The grid to update
         """
         target_day = 0
+        location = target_grid.split(":")[1]
         if "DAY1" in target_grid:
             target_day = 1
         elif "DAY2" in target_grid:
@@ -114,6 +116,7 @@ class ControlPanelHandler:
         for grid_event_handler in self.grid_event_handlers:
             if grid_event_handler.day == target_day:
                 await grid_event_handler.update_grids()
+                await grid_event_handler.update_available_names(location)
                 return
 
     def set_radio_value(self, value: Literal["MCC", "HCC1", "HCC2"]):

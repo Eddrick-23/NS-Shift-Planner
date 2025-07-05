@@ -1,8 +1,10 @@
 import requests
+import os
 from nicegui import ui, app, run
 from src.frontend.styles.css import custom_css
 from src.frontend.config import config
 from src.frontend.api.urls_and_keys import ENDPOINTS, SESSION_ID_KEY, SOURCE_CODE_URL
+from fastapi.staticfiles import StaticFiles
 
 
 def built_with_component():
@@ -69,17 +71,23 @@ def landing():
       }
     </style>
     """)
+    static_path = os.path.abspath("src/frontend/static")
+    app.add_static_files("/static", static_path)
     ui.add_css(custom_css)
-
     with ui.element("div").classes("flex w-full h-screen"):
         # Left half
-        with ui.element("div").classes("w-1/2 flex flex-col items-center pt-20"):
-            with ui.row():
-                ui.image("src/frontend/assets/Animation - 1751512589860.gif").classes(
-                    "w-10 h-10"
-                )
-                ui.label("Welcome").classes("text-4xl font-bold")
-            with ui.element("div").classes("w-full h-[500px] mb-20 mt-20"):
+        with ui.element("div").classes("w-1/2 flex flex-col items-center"):
+            with ui.row().classes("pt-10 pb-10"):
+                # ui.image("src/frontend/assets/pNSxCpst0R.gif").classes("w-16 h-16 pb-3")
+                ui.html("""
+                <video autoplay loop muted playsinline class="w-20 h-20 object-contain">
+                <source src="/static/videos/pNSxCpst0R.webm" type="video/webm">
+                </video>
+                """).classes("-mt-3")
+                ui.label("Welcome").classes("text-4xl font-bold pt-2 mb-8")
+            with ui.element("div").classes(
+                "w-full h-[500px] mb-10 mt-15 border border-gray-300"
+            ):
                 with ui.splitter(value=35).classes("w-full h-full") as splitter:
                     with splitter.before:
                         with (
@@ -119,23 +127,45 @@ def landing():
                                 """)
 
                             with ui.tab_panel(features):
-                                ui.label("Interactive grid UI").classes("text-h6")
-                                ui.image("src/frontend/assets/shift_allocate_example.gif")
-                                ui.label("Resume past sessions with a session ID").classes("text-h6")
-                                ui.image("src/frontend/assets/resume_session_example.gif")
-                                ui.label("Use keybinds to toggle buttons quickly").classes("text-h6")
-                                # ui.image()
+                                with ui.row():
+                                    ui.label("Interactive grid UI").classes(
+                                        "text-h6 underline"
+                                    )
+                                    ui.image(
+                                        "src/frontend/assets/shift_allocate_example.gif"
+                                    )
+                                    ui.label(
+                                        "Resume past sessions with a session ID"
+                                    ).classes("text-h6 underline")
+                                    ui.image(
+                                        "src/frontend/assets/resume_session_example.gif"
+                                    )
+                                    ui.label(
+                                        "Use keybinds to toggle buttons quickly"
+                                    ).classes("text-h6 underline")
+                                    ui.image("src/frontend/assets/keybinds_example.gif")
 
                             with ui.tab_panel(tips):
                                 # ui.label("lightbulb").classes("text-h4")
-                                with ui.row().classes('w-full justify-center'):
-                                    ui.label("Refer to the keybinds and FAQ on the bottom right of the page")
-                                    ui.image("src/frontend/assets/help_buttons.png").classes("h-20 w-60")
-                                    ui.label("Find the menu bar for more controls like saving, uploading or resetting")
-                                    ui.image("src/frontend/assets/menu.png").classes("h-60 w-60 center")
-                                    ui.label("Copy your session id to clipboard and save it for later use")
-                                    ui.image("src/frontend/assets/session_id.png").classes("h-30 w-60")
-
+                                with ui.row().classes("w-full justify-center"):
+                                    ui.label(
+                                        "Refer to the keybinds and FAQ on the bottom right of the page"
+                                    )
+                                    ui.image(
+                                        "src/frontend/assets/help_buttons.png"
+                                    ).classes("h-20 w-60")
+                                    ui.label(
+                                        "Find the menu bar for more controls like saving, uploading or resetting"
+                                    )
+                                    ui.image("src/frontend/assets/menu.png").classes(
+                                        "h-60 w-60 center"
+                                    )
+                                    ui.label(
+                                        "Copy your session id to clipboard and save it for later use"
+                                    )
+                                    ui.image(
+                                        "src/frontend/assets/session_id.png"
+                                    ).classes("h-30 w-60")
 
                 # Fixed bottom-left container for logos + text
             built_with_component()
