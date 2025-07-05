@@ -5,6 +5,8 @@
 
 > Ns Planning app (Revamped from https://github.com/Eddrick-23/NS_SHIFT_PLANNER)
 
+Access it here: https://ns-planner.onrender.com/
+
 ## 🚀 Features
 
 - 🧩 **Interactive Grid UI**  
