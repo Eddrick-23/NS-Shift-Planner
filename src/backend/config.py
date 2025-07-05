@@ -23,7 +23,7 @@ class Config:
         self.ENVIRONMENT = self.get_variable("ENVIRONMENT")
         self.check_valid_environment(self.ENVIRONMENT)
         if self.ENVIRONMENT == "PROD":
-            self.FRONT_END_DOMAIN = self.get_variable("FRONT_END_DOMAIN")
+            self.FRONT_END_DOMAIN = self.get_variable("FRONTEND_DOMAIN")
         else:
             self.FRONT_END_DOMAIN = None
         self.GOOGLE_APPLICATION_CREDENTIALS = self.get_variable(

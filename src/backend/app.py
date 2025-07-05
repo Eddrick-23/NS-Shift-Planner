@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import json
 import time
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
@@ -14,9 +15,8 @@ from src.backend.config import config
 from src.backend.internal.lru_cache import CustomLRUCache
 from src.backend.routes import router
 
-CRED_PATH = config.GOOGLE_APPLICATION_CREDENTIALS
-
-CRED = credentials.Certificate(CRED_PATH)
+CRED_DICT = json.loads(config.GOOGLE_APPLICATION_CREDENTIALS)
+CRED = credentials.Certificate(CRED_DICT)
 firebase_admin.initialize_app(CRED)
 DB_COLLECTION_NAME = config.DB_COLLECTION_NAME
 
