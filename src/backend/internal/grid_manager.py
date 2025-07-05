@@ -3,6 +3,7 @@ import zipfile
 import json
 from bitarray import bitarray
 from typing import cast
+import logging
 from src.backend.internal.grid_handler import GridHandler
 
 
@@ -167,6 +168,25 @@ class GridManager:
 
         hour_data = handler.get_hours()
         __update_day_hours(handler.day, name, hour_data[name])
+    
+    def swap_hours(self,name1:str,name2:str,target_grid:str):
+        """
+        Swap hour data for 2 names
+
+        Args:
+            name1(str):first name
+            name2(str):second name
+            target_grid(str): grid containing the swapped names
+        """
+        if name1 not in self.all_hours:
+            logging.error("%s not tracked in manager.all_hours", name1)
+            return
+        if  name2 not in self.all_hours:
+            logging.error("%s not tracked in manager.all_hours", name2)
+            return
+        day:int = int(target_grid[3])
+        key = f"Day {day}"
+        self.all_hours[name1][key],self.all_hours[name2][key] = self.all_hours[name2][key],self.all_hours[name1][key]
 
     def serialise_to_zip(self):
         """

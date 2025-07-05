@@ -24,6 +24,7 @@ class Config:
         self.GOOGLE_APPLICATION_CREDENTIALS = self.get_variable(
             "GOOGLE_APPLICATION_CREDENTIALS"
         )
+        self.DB_COLLECTION_NAME = self.get_variable("DB_COLLECTION_NAME")
         self.ENVIRONMENT = self.get_variable("ENVIRONMENT")
         self.LRU_CACHE_SIZE = int(self.get_variable("LRU_CACHE_SIZE"))
         self.PRUNE_DB_INTERVAL = int(self.get_variable("PRUNE_DB_INTERVAL"))

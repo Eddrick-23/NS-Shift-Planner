@@ -248,21 +248,28 @@ class GridHandler:
         self.names.remove(old_name)
         self.names.add(new_name)
 
-    def swap_names(self, name1, name2):
+    def swap_names(self, name1, name2) -> bool:
         """
         swaps the names of two existing columns in the database
+
+        Args:
+            name1(str):first name
+            name2(str):second name
+        Returns:
+            True on successful swap else False
         """
         if name1 not in self.names:
             self.logger.info("%s:%s does not exist in grid", self.identifier, name1)
-            return
+            return False
         if name2 not in self.names:
             self.logger.info("%s:%s does not exist in grid", self.identifier, name2)
-            return
+            return False
         self.data = self.data.rename(columns={name1: name2, name2: name1})
         self.hours[name1], self.hours[name2] = (
             self.hours[name2],
             self.hours[name1],
         )  # swap the hour count
+        return True
 
     def is_shift_allocated(self, time_block, name) -> bool | None:
         """

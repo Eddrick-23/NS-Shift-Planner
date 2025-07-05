@@ -7,7 +7,6 @@ COPY src/backend/pyproject.toml uv.lock ./
 RUN uv sync
 COPY src/__init__.py ./src/
 COPY src/backend/ ./src/backend/
-COPY ../../secrets ./secrets
 
 EXPOSE 8000
 

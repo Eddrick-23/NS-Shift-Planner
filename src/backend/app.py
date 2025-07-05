@@ -8,9 +8,9 @@ from typing import cast
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Header, Depends, status, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import Annotated, Literal
 from cachetools import LRUCache
-from typing import Literal
 import firebase_admin
 from firebase_admin import credentials, firestore
 from google.cloud.firestore import Client
@@ -19,9 +19,11 @@ from src.backend.internal.grid_manager import GridManager, GridHandler
 import src.backend.internal.time_blocks as tb
 from src.backend.internal.lru_cache import CustomLRUCache
 
-cred_path = config.GOOGLE_APPLICATION_CREDENTIALS
-cred = credentials.Certificate(cred_path)
-firebase_admin.initialize_app(cred)
+CRED_PATH = config.GOOGLE_APPLICATION_CREDENTIALS
+
+CRED = credentials.Certificate(CRED_PATH)
+firebase_admin.initialize_app(CRED)
+DB_COLLECTION_NAME = config.DB_COLLECTION_NAME
 
 # Initialize Firestore client
 db: Client = firestore.client()
@@ -46,7 +48,7 @@ async def prune_db(db: Client, interval_hours: int):
             from google.cloud.firestore import FieldFilter
 
             docs = (
-                db.collection("projects")
+                db.collection(DB_COLLECTION_NAME)
                 .where(filter=FieldFilter("expireAt", "<", now))
                 .stream()
             )
@@ -67,7 +69,7 @@ async def prune_db(db: Client, interval_hours: int):
 
 
 def load_existing_ids(db: Client):
-    projects_ref = db.collection("projects")
+    projects_ref = db.collection(DB_COLLECTION_NAME)
     docs = projects_ref.stream()
 
     all_ids = set()
@@ -129,7 +131,7 @@ async def lifespan(app: FastAPI):
     except asyncio.CancelledError:
         pass  # expected during shutdown
     # run cache scan one more time to sync all data to firestore
-    if config.ENVIRONMENT != "DEV": #don't save in dev to avoid overloading database
+    if config.ENVIRONMENT != "DEV":  # don't save in dev to avoid overloading database
         logging.info("Syncing changes before shutdown")
         await scan_cache(cache, config.SCAN_CACHE_INTERVAL, run_once=True)
     logging.info("Shutdown Complete")
@@ -150,7 +152,7 @@ def restore_from_database(session_id: str) -> GridManager:
     Returns:
         GridManager class instance
     """
-    doc_ref = db.collection("projects").document(f"session_id:{session_id}")
+    doc_ref = db.collection(DB_COLLECTION_NAME).document(f"session_id:{session_id}")
     doc = doc_ref.get()
     data = doc.to_dict()
     decoded_bytes = base64.b64decode(data.get("data"))
@@ -207,6 +209,19 @@ class AllocateShiftRequest(AddOrRemoveRequest):
     location: Literal["MCC", "HCC1", "HCC2"]
     allocation_size: Literal["0.25", "0.75", "1"]
     time_block: str
+
+
+class SwapNameRequest(BaseModel):
+    grid_name: Literal[
+        "DAY1:MCC",
+        "DAY1:HCC1",
+        "DAY1:HCC2",
+        "DAY2:MCC",
+        "DAY2:HCC1",
+        "DAY2:HCC2",
+        "DAY3:MCC",
+    ]
+    names: Annotated[list[str], Field(min_length=2, max_length=2)]
 
 
 @app.get("/all_ids/")
@@ -280,6 +295,26 @@ async def get_grid_compressed(
 
     return JSONResponse(
         status_code=status.HTTP_200_OK, content=aggrid_format_compressed
+    )
+
+
+@app.get("/grid/names/")
+async def get_names(
+    request: Request,
+    day: int,
+    grid: str,
+    manager: GridManager = Depends(get_manager),
+):
+    target_grid = f"DAY{day}:{grid}"
+    grid_handler: GridHandler = manager.all_grids.get(target_grid, None)
+    if grid_handler is None:
+        logging.error("Target Grid is None, may not be initialised in manager")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={}
+        )
+    existing_names = grid_handler.get_names()
+    return JSONResponse(
+        status_code=status.HTTP_200_OK, content={"names": list(existing_names)}
     )
 
 
@@ -460,4 +495,24 @@ async def reset_all(request: Request, manager: GridManager = Depends(get_manager
     app.state.manager_cache[request.headers["X-Session-ID"]] = GridManager()
     return JSONResponse(
         status_code=status.HTTP_200_OK, content={"detail": "data resetted"}
+    )
+
+
+@app.post("/grid/swap-names/")
+async def swap_names(
+    request: SwapNameRequest, manager: GridManager = Depends(get_manager)
+):
+    target_grid = request.grid_name
+    names = request.names
+    # update handler
+    grid_handler: GridHandler = manager.all_grids[target_grid]
+    swapped = grid_handler.swap_names(names[0], names[1])
+
+    # swap in GridManager hour tracking
+    if not swapped:
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    manager.swap_hours(names[0], names[1], target_grid)
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={"detail": f"Swapped {names}, target_grid:{target_grid}"},
     )

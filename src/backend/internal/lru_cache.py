@@ -18,6 +18,7 @@ class CustomLRUCache(LRUCache):
     def __init__(self, maxsize, firebase_client=None, **kwargs):
         super().__init__(maxsize, **kwargs)
         self.firebase = firebase_client
+        self.__DB_COLLECTION_NAME = config.DB_COLLECTION_NAME
 
     # keep method synchronous to override original
     def popitem(self):
@@ -35,7 +36,7 @@ class CustomLRUCache(LRUCache):
             encoded_zip = base64.b64encode(zip_bytes).decode("utf-8")
 
             doc_id = f"session_id:{session_id}"
-            doc_ref = self.firebase.collection("projects").document(doc_id)
+            doc_ref = self.firebase.collection(self.__DB_COLLECTION_NAME).document(doc_id)
             updated = datetime.now(timezone.utc)
             expire_at = updated + timedelta(days=1)
 
