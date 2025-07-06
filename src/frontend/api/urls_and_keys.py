@@ -4,6 +4,7 @@ All api endpoint routes
 from src.frontend.config import config
 
 SESSION_ID_KEY = "session_id"
+CLIENT_KEY = "client"
 
 SOURCE_CODE_URL = "https://github.com/Eddrick-23/NS-Shift-Planner"
  
@@ -22,6 +23,6 @@ ENDPOINTS = {
     "ALLOCATE_SHIFT":f"{API_BASE}/grid/allocate/",
     "HOUR_DATA":f"{API_BASE}/hours/",
     "GRID_NAMES":f"{API_BASE}/grid/names/",
-    "SWAP_NAMES":f"{API_BASE}/grid/swap-names/"
-
+    "SWAP_NAMES":f"{API_BASE}/grid/swap-names/",
+    "HEALTH": f"{API_BASE}/health/",
 }

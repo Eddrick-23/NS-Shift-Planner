@@ -1,3 +1,4 @@
+import nicegui
 from nicegui import run, ui
 import requests
 from typing import Literal
@@ -10,13 +11,16 @@ import asyncio
 class ControlPanelHandler:
     INVALID_NAMES = ["MCC", "HCC1", "HCC2", "0", "TOTAL"]
 
-    def __init__(self, session_id: str):
+    def __init__(self, session_id: str,client: nicegui.Client):
         self.radio_value = "MCC"
         self.radio_options = ["MCC", "HCC1", "HCC2"]
-        self.TIMEOUT = 10
         self.ADD_NAME_URL = ENDPOINTS["ADD_NAME"]
         self.REMOVE_NAME_URL = ENDPOINTS["REMOVE_NAME"]
         self.HEADERS = {"X-Session-ID": session_id, "x-api-key": API_KEY}
+        self.CLIENT = client
+        self.CLIENT.on_disconnect(self._on_disconnect)
+        self.CLIENT.on_connect(self._on_connect)
+        self.client_connected = True
         # Store references to UI elements
         self.grid_option = None
         self.name_input = None
@@ -152,6 +156,8 @@ class ControlPanelHandler:
         response = await run.io_bound(
             requests.post, self.ADD_NAME_URL, json=body, headers=self.HEADERS
         )
+        if not self.client_connected:
+            return 
         await self.trigger_handler_update(target_grid)
         ui.notify(response.json()["detail"])
 
@@ -188,9 +194,8 @@ class ControlPanelHandler:
         await self.trigger_handler_update(target_grid)
         ui.notify(response.json()["detail"])
 
-
-
-
-# Usage example:
-# handler = ControlPanelHandler()
-# control_panel = handler.create_control_panel()
+    def _on_disconnect(self):
+        self.clent_connected = False
+    
+    def _on_connect(self):
+        self.client_connected = True

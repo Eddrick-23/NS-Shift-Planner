@@ -1,3 +1,4 @@
+import nicegui
 from nicegui import ui, run
 import requests
 from src.frontend.components.upload_file import UploadUI
@@ -5,8 +6,12 @@ from src.frontend.api.urls_and_keys import ENDPOINTS,SOURCE_CODE_URL,API_KEY
 
 
 class MenuWidget:
-    def __init__(self, session_id):
+    def __init__(self, session_id:str, client:nicegui.Client):
         self.HEADERS = {"X-Session-ID": session_id, "x-api-key":API_KEY}
+        self.CLIENT = client
+        self.CLIENT.on_disconnect(self._on_disconnect)
+        self.CLIENT.on_connect(self._on_connect)
+        self.client_connected = True
         self.DOWNLOAD_URL = ENDPOINTS["DOWNLOAD"]
         self.RESET_URL = ENDPOINTS["RESET"]
         self.SOURCE_CODE_URL = SOURCE_CODE_URL
@@ -33,6 +38,8 @@ class MenuWidget:
             requests.post, self.DOWNLOAD_URL, headers=self.HEADERS
         )
         if response.status_code != 200:
+            if not self.client_connected:
+                return
             ui.notify("Error in exporting project", type="negative")
             return
         ui.download.content(response.content, "planning.zip")
@@ -43,6 +50,8 @@ class MenuWidget:
                 requests.delete, self.RESET_URL, headers=self.HEADERS
             )
             if response.status_code != 200:
+                if not self.client_connected:
+                    return
                 ui.notify("Reset error occured", type="negative")
                 return
             ui.run_javascript("location.reload();")
@@ -60,5 +69,11 @@ class MenuWidget:
                         lambda: dialog.close()
                     )
                     ui.button("Confirm").on_click(handle_reset_confirm)
-
+                    
         dialog.open()
+    
+    def _on_disconnect(self):
+        self.clent_connected = False
+    
+    def _on_connect(self):
+        self.client_connected = True

@@ -1,3 +1,4 @@
+import nicegui
 from nicegui import ui, app
 from uuid import uuid4
 from nicegui.events import KeyEventArguments
@@ -13,8 +14,8 @@ from src.frontend.components.help_button import (
 from src.frontend.components.compress_grid_switch import CompressSwitch
 from src.frontend.components.swap_grid_name import SwapGridNameUI
 from src.frontend.styles.css import custom_css
-
-SESSION_ID_KEY = "session_id"
+from src.frontend.clients.client import client_registry
+from src.frontend.api.urls_and_keys import SESSION_ID_KEY,CLIENT_KEY
 
 
 def handle_key(e: KeyEventArguments, control_panel_handler: ControlPanelHandler):
@@ -57,17 +58,30 @@ def get_session() -> tuple[str, str]:
     return session_id
 
 
+
+async def handle_connect(client:nicegui.Client):
+    await ui.context.client.connected()
+    app.storage.tab["client"] = client
+
+async def handle_disconnect(client:nicegui.Client):
+    await ui.context.client.connected()
+    app.storage.tab.pop("client", None)
+
+app.on_connect(handle_connect)
+app.on_disconnect(handle_disconnect)
+
 @ui.page("/session/")
 async def session_page():
     await ui.context.client.connected()
     SESSION_ID = get_session()
+    CLIENT = app.storage.tab.get(CLIENT_KEY, None)
     # Add the CSS to the page
     ui.add_head_html(custom_css)
 
     #create grid handlers
-    grid_handler_1 = GridEventHandler(day=1, session_id=SESSION_ID)
-    grid_handler_2 = GridEventHandler(day=2, session_id=SESSION_ID)
-    grid_handler_3 = GridEventHandler(day=3, session_id=SESSION_ID)
+    grid_handler_1 = GridEventHandler(day=1, session_id=SESSION_ID, client=CLIENT)
+    grid_handler_2 = GridEventHandler(day=2, session_id=SESSION_ID, client=CLIENT)
+    grid_handler_3 = GridEventHandler(day=3, session_id=SESSION_ID, client=CLIENT)
 
     #create left drawer
     with (
@@ -75,12 +89,12 @@ async def session_page():
         .classes("bg-gray-100 shadow-lg p-4")
         .props("width=400") as left_drawer
     ):
-        menu_widget = MenuWidget(SESSION_ID)
+        menu_widget = MenuWidget(SESSION_ID, CLIENT)
         menu_widget.create_menu_widget()
         create_session_id_element(SESSION_ID)
 
         #ui for swapping names
-        swap_name_ui = SwapGridNameUI(SESSION_ID)
+        swap_name_ui = SwapGridNameUI(SESSION_ID, CLIENT)
         swap_name_ui.grid_event_handlers["DAY1"] = grid_handler_1
         swap_name_ui.grid_event_handlers["DAY2"] = grid_handler_2
         swap_name_ui.grid_event_handlers["DAY3"] = grid_handler_3
@@ -95,7 +109,7 @@ async def session_page():
         LeftDrawerToggle(left_drawer,direction="right")
 
     # Control Panel
-    control_panel_handler = ControlPanelHandler(session_id=SESSION_ID)
+    control_panel_handler = ControlPanelHandler(session_id=SESSION_ID, client=CLIENT)
     ui.keyboard(on_key=lambda e: handle_key(e, control_panel_handler))
     control_panel = control_panel_handler.create_control_panel()
     ui.separator()
@@ -110,7 +124,7 @@ async def session_page():
         await grid_handler_2.generate_grids()
     with container3:
         await grid_handler_3.generate_grids()
-    hour_grid_handler = HourGridHandler(session_id=SESSION_ID)
+    hour_grid_handler = HourGridHandler(session_id=SESSION_ID, client=CLIENT)
     with left_drawer:
         await hour_grid_handler.create_hour_grid()
 
@@ -129,6 +143,4 @@ async def session_page():
         create_help_button()
     switch.add_day_3_grid_handler(grid_handler_3)
     grid_handler_3.add_compress_switch(switch.switch)
-
-
 ui.run()

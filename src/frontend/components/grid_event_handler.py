@@ -1,3 +1,4 @@
+import nicegui
 import requests
 import asyncio
 from typing import Literal
@@ -8,12 +9,17 @@ from src.frontend.api.urls_and_keys import ENDPOINTS,API_KEY
 
 
 class GridEventHandler:
-    def __init__(self, day: int, session_id: str):
+    def __init__(self, day: int, session_id: str,client: nicegui.Client):
         self.FETCH_GRID_DATA_URL = ENDPOINTS["FETCH_GRID"]
         self.FETCH_COMPRESSED_GRID_DATA_URL = ENDPOINTS["FETCH_GRID_COMPRESSED"]
         self.ALLOCATE_SHIFT_URL = ENDPOINTS["ALLOCATE_SHIFT"]
         self.FETCH_GRID_NAMES_URL = ENDPOINTS["GRID_NAMES"]
         self.HEADERS = {"X-Session-ID": session_id, "x-api-key": API_KEY}
+        self.CLIENT = client
+        self.CLIENT.on_disconnect(self._on_disconnect)
+        self.CLIENT.on_connect(self._on_connect)
+        self.client_connected = True
+        #track state of modifier keys
         self.left_half = False
         self.right_half = False
         self.day = day
@@ -123,6 +129,8 @@ class GridEventHandler:
         response = await run.io_bound(
             requests.post, self.ALLOCATE_SHIFT_URL, json=body, headers=self.HEADERS
         )
+        if not self.client_connected:
+            return
         await self.update_grids()
         await self.hour_grid_handler.update_hour_grid()
         if response.status_code != 200:
@@ -182,6 +190,8 @@ class GridEventHandler:
             json={"day": day},
             headers=self.HEADERS,
         )
+        if not self.client_connected:
+            return {}
         if response.status_code != 200:
             ui.notify(f"Fetch grid data for day{day} failed.")
         return response.json()
@@ -236,6 +246,8 @@ class GridEventHandler:
             json=body,
             headers=self.HEADERS,
         )
+        if not self.client_connected:
+            return
         if response.status_code != 200:
             ui.notify("Error in getting compressed grid data", type="negative")
         data = response.json()
@@ -260,8 +272,16 @@ class GridEventHandler:
         """
         params = {"day": self.day, "grid": grid}
         response = await run.io_bound(requests.get, self.FETCH_GRID_NAMES_URL, params=params, headers=self.HEADERS)
+        if not self.client_connected:
+            return []
         if response.status_code != 200:
             ui.notify("Fetch grid name error", type="negative")
             return []
         self.names[grid] = response.json()["names"]
         return response.json()["names"]
+
+    def _on_disconnect(self):
+        self.clent_connected = False
+    
+    def _on_connect(self):
+        self.client_connected = True

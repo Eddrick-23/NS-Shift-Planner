@@ -1,5 +1,6 @@
 import asyncio
 import requests
+import nicegui
 from nicegui import ui,run
 from src.frontend.components.grid_event_handler import GridEventHandler
 from src.frontend.api.urls_and_keys import ENDPOINTS,API_KEY
@@ -15,8 +16,12 @@ class SwapGridNameUI:
         "DAY3:MCC",
     ]
 
-    def __init__(self,session_id:str):
+    def __init__(self,session_id:str, client:nicegui.Client):
         self.HEADERS = {"X-Session-ID": session_id, "x-api-key":API_KEY}
+        self.CLIENT = client
+        self.CLIENT.on_disconnect(self._on_disconnect)
+        self.CLIENT.on_connect(self._on_connect)
+        self.client_connected = True
         self.grid_event_handlers = {}
         self.available_names = []
 
@@ -92,3 +97,7 @@ class SwapGridNameUI:
             grid_event_handler.hour_grid_handler.update_hour_grid()
         )
 
+    def _on_disconnect(self):
+        self.client_connected = False
+    def _on_connect(self):
+        self.client_connected = True
