@@ -1,6 +1,6 @@
 <h1 align="center">Welcome to NS-Shift-Planner 👋</h1>
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.0.0--beta-blue.svg?cacheSeconds=2592000" />
+  <img alt="Version" src="https://img.shields.io/badge/version-1.0.1--beta-blue.svg?cacheSeconds=2592000" />
   <a href="LICENSE.txt">
     <img alt="License: GPL v3" src="https://img.shields.io/badge/License-GPLv3-blue.svg" />
   </a>
@@ -11,6 +11,12 @@
 > Ns Planning app (Revamped from https://github.com/Eddrick-23/NS_SHIFT_PLANNER)
 
 Access it here: https://ns-planner.onrender.com/
+
+## 🚀 What's New (v1.0.1-beta)
+- Added ui for connecting to backend on app cold start
+- Optimised dockerfiles for smaller runtime builds
+
+See full [CHANGELOG.md](./CHANGELOG.md) for older versions.
 
 ## 🚀 Features
 
@@ -47,6 +53,7 @@ GOOGLE_APPLICATION_CREDENTIALS=serviceAccountKey.json
 FRONTEND_DOMAIN=https://frontend_domain (for deployment)
 BACKEND_DOMAIN=https://backend_domain (for deployment)
 BACKEND_PORT=8000
+FRONTEND_PORT=8080
 LRU_CACHE_SIZE=50
 PRUNE_DB_INTERVAL=1
 DB_COLLECTION_NAME=firestore-collection-name

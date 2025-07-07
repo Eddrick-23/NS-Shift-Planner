@@ -4,3 +4,5 @@ secrets
 *.pyc
 .env
 project-notes.md
+.DS_Store
+src/.DS_Store
