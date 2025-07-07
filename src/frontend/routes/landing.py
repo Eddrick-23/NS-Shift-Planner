@@ -119,6 +119,8 @@ async def landing():
                                 )
                                 ui.markdown("""
                                 **This app is currently in beta and may be unstable.**
+                                            
+                                See the [Changelogs](https://github.com/Eddrick-23/NS-Shift-Planner/blob/main/CHANGELOG.md) for more details on the latest changes.
 
                                 Start a new session or continue a previous session.
 
