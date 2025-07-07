@@ -1,53 +1,11 @@
 import requests
-import asyncio
 import os
 from nicegui import ui, app, run
 from fastapi.staticfiles import StaticFiles
 from src.frontend.styles.css import custom_css
 from src.frontend.config import config
 from src.frontend.api.urls_and_keys import ENDPOINTS, SESSION_ID_KEY, SOURCE_CODE_URL
-
-async def on_startup():
-    """
-    This function is called when the application starts.
-    Pings backend to ensure it is running and ready.
-    Then closes the card that shows the loading state.
-    """
-    with ui.card().classes("w-full h-[95vh] mt-2 items-center justify-center") as loading_card:
-        spinner = ui.spinner(type="Grid",size="xl")
-        ui.label("Connecting to backend, please wait...").classes("text-lg")
-        ui.label("This my take awhile if the backend is cold starting.").classes("text-lg")
-        linear_progress = ui.linear_progress(size="lg", show_value=False).classes("w-1/2")
-
-    attemps = 0
-    max_attempts = 10
-    connected_to_backend = False
-    while True:
-        linear_progress.value = attemps / max_attempts
-        try:
-            response = await run.io_bound(
-                requests.get, ENDPOINTS["HEALTH"], headers={"x-api-key": config.API_KEY}, timeout = 5
-            )
-            if response.status_code == 200:
-                linear_progress.value = 1.0
-                linear_progress.props("color=green")
-                spinner.props("color=green")
-                await asyncio.sleep(0.5)  # Give some time for the UI to update
-                loading_card.delete()
-                connected_to_backend = True
-                break
-        except requests.RequestException as e:
-            attemps += 1
-            if attemps > max_attempts:
-                with loading_card:
-                    linear_progress.props("color=red")
-                    spinner.props("color=red")
-                    ui.label("Failed to connect to backend after multiple attempts").classes("text-red-500")
-                    ui.label("Refresh the page to try again").classes("text-red-500")
-                break
-        await asyncio.sleep(4)
-
-    return connected_to_backend
+from src.frontend.components.connect_backend_ui import on_startup
 
 def built_with_component():
     with ui.element("div").classes("fixed bottom-0 left-0 p-4 bg-white bg-opacity-90"):
@@ -114,13 +72,12 @@ async def landing():
       }
     </style>
     """)
-    assets_path = os.path.join(os.path.dirname(__file__), '..', 'assets')
-    app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
-    ui.add_css(custom_css)
-
     connected_to_backend = await on_startup() # ensure backend is ready before rendering the page
     if not connected_to_backend:
         return
+    assets_path = os.path.join(os.path.dirname(__file__), '..', 'assets')
+    app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
+    ui.add_css(custom_css)
     with ui.element("div").classes("flex w-full h-screen"):
         # Left half
         with ui.element("div").classes("w-1/2 flex flex-col items-center"):
@@ -268,6 +225,3 @@ async def landing():
                         text="Resume",
                         on_click=lambda: handle_resume_session(session_input.value),
                     ).classes("w-1/2")
-
-
-ui.run()

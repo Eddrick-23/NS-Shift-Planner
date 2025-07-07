@@ -18,9 +18,10 @@ class Config:
         self.ENVIRONMENT = self.get_variable("ENVIRONMENT")
         self.check_valid_environment(self.ENVIRONMENT)
         if self.ENVIRONMENT == "DEV":
-            self.BACKEND_URL = f"http://{self.get_variable("HOST_NAME")}:{self.get_variable("BACKEND_PORT")}/"
+            self.BACKEND_URL = f"http://{self.get_variable("HOST_NAME")}:{self.get_variable("BACKEND_PORT")}"
         if self.ENVIRONMENT == "PROD":
-            self.BACKEND_URL = f"{self.get_variable("BACKEND_DOMAIN")}/"
+            self.BACKEND_URL = f"{self.get_variable("BACKEND_DOMAIN")}"
+        self.PORT = int(self.get_variable("FRONTEND_PORT"))
         self.VERSION = self.get_variable("VERSION")
         self.API_KEY = self.get_variable("API_KEY")
         logging.info("Backend configs loaded")

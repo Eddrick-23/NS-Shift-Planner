@@ -14,8 +14,8 @@ from src.frontend.components.help_button import (
 from src.frontend.components.compress_grid_switch import CompressSwitch
 from src.frontend.components.swap_grid_name import SwapGridNameUI
 from src.frontend.styles.css import custom_css
-from src.frontend.clients.client import client_registry
 from src.frontend.api.urls_and_keys import SESSION_ID_KEY,CLIENT_KEY
+from src.frontend.components.connect_backend_ui import on_startup
 
 
 def handle_key(e: KeyEventArguments, control_panel_handler: ControlPanelHandler):
@@ -75,6 +75,9 @@ async def session_page():
     await ui.context.client.connected()
     SESSION_ID = get_session()
     CLIENT = app.storage.tab.get(CLIENT_KEY, None)
+    backend_conected = await on_startup()  # Ensure backend is ready before rendering the page
+    if not backend_conected:
+        return
     # Add the CSS to the page
     ui.add_head_html(custom_css)
 
@@ -143,4 +146,3 @@ async def session_page():
         create_help_button()
     switch.add_day_3_grid_handler(grid_handler_3)
     grid_handler_3.add_compress_switch(switch.switch)
-ui.run()
