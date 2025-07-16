@@ -8,10 +8,13 @@ import 'primeicons/primeicons.css'
 import Button from 'primevue/button'
 import Tabs from 'primevue/tabs';
 import TabPanel from 'primevue/tabpanel';
+import TabPanels from 'primevue/tabpanels'
 import Tab from 'primevue/tab';
 import TabList from 'primevue/tablist';
+import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 
-
+// Register all Community features
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 
 
@@ -23,7 +26,7 @@ app.use(PrimeVue, {
         preset: Aura,
         options: {
             prefix: 'p',
-            darkModeSelector: 'system',
+            darkModeSelector: 'light',
             cssLayer: false
         }
     }
@@ -32,6 +35,7 @@ app.use(PrimeVue, {
 app.component('Button', Button);
 app.component('Tabs', Tabs);
 app.component('TabPanel', TabPanel);
+app.component('TabPanels', TabPanels);
 app.component('Tab', Tab);
 app.component('TabList', TabList);
 app.mount('#app');
