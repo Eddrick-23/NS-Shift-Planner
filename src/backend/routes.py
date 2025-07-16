@@ -83,6 +83,7 @@ class UploadRequest(BaseModel):
 
 class FetchGridRequest(BaseModel):
     day: Literal[1, 2, 3]
+    location:Literal["MCC","HCC1","HCC2"]
 
 
 class AddOrRemoveRequest(BaseModel):
@@ -184,6 +185,7 @@ async def get_grid(
     result = {}
     bit_masks = {}
     day = fetch_grid_req.day
+    location = fetch_grid_req.location
     # find the required handlers
     for key, handler in manager.all_grids.items():
         if f"DAY{day}" not in key:
@@ -193,15 +195,14 @@ async def get_grid(
 
     # format the keys
     blocks_to_remove = manager.format_keys(tb.HALF_DAY_BLOCK_MAP[day], **bit_masks)
-
     # get the formatted dataframe in aggrid format
     for key, handler in manager.all_grids.items():
-        if f"DAY{day}" not in key:
+        if f"DAY{day}" not in key or location not in key:
             continue
         handler = cast(GridHandler, handler)
         formatted_df = handler.generate_formatted_dataframe(blocks_to_remove)
         aggrid_format = handler.df_to_aggrid_format(formatted_df)
-        result[key] = aggrid_format
+        result["data"] = aggrid_format
     return JSONResponse(status_code=status.HTTP_200_OK, content=result)
 
 
