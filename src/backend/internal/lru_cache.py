@@ -6,6 +6,7 @@ On evict, the GridManager class is intercepted and the data is saved to firebase
 
 import logging
 import base64
+import threading
 from cachetools import LRUCache
 from datetime import datetime, timedelta, timezone
 import firebase_admin
@@ -17,15 +18,37 @@ from src.backend.config import config
 class CustomLRUCache(LRUCache):
     def __init__(self, maxsize, firebase_client=None, **kwargs):
         super().__init__(maxsize, **kwargs)
+        self._lock = threading.RLock()
         self.firebase = firebase_client
         self.__DB_COLLECTION_NAME = config.DB_COLLECTION_NAME
 
     # keep method synchronous to override original
     def popitem(self):
-        session_id, grid_manager = super().popitem()
-        if grid_manager.requires_sync:
-            self.sync_to_firebase(session_id, grid_manager)
-        return session_id, grid_manager
+        with self._lock:
+            session_id, grid_manager = super().popitem()
+            if grid_manager.requires_sync:
+                self.sync_to_firebase(session_id, grid_manager)
+            return session_id, grid_manager
+    
+    def __getitem__(self, key):
+        with self._lock:
+            return super().__getitem__(key)
+
+    def __setitem__(self, key, value):
+        with self._lock:
+            return super().__setitem__(key, value)
+
+    def __delitem__(self, key):
+        with self._lock:
+            return super().__delitem__(key)
+
+    def __contains__(self, key):
+        with self._lock:
+            return super().__contains__(key)
+
+    def get(self, key, default=None):
+        with self._lock:
+            return super().get(key, default)
 
     def sync_to_firebase(self, session_id: str, manager: GridManager):
         """
