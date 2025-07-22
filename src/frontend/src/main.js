@@ -12,6 +12,8 @@ import TabPanels from 'primevue/tabpanels'
 import Tab from 'primevue/tab';
 import TabList from 'primevue/tablist';
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
+import Toast from 'primevue/toast';
+import ToastService from 'primevue/toastservice';
 
 // Register all Community features
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -31,7 +33,9 @@ app.use(PrimeVue, {
         }
     }
  });
+app.use(ToastService);
  // Register components globally
+app.component('Toast',Toast);
 app.component('Button', Button);
 app.component('Tabs', Tabs);
 app.component('TabPanel', TabPanel);

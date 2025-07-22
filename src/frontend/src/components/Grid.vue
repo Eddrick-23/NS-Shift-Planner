@@ -13,10 +13,13 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { AgGridVue } from 'ag-grid-vue3'
-import axios from 'axios'
-import endpoints from "../api/api.js"
+import { ref} from 'vue';
+import { AgGridVue } from 'ag-grid-vue3';
+import { useToast } from 'primevue/usetoast';
+import axios from 'axios';
+import endpoints from "../api/api.js";
+
+const toast = useToast(); // <Toast /> already added on main page
 
 const props = defineProps({
     day: {
@@ -30,16 +33,17 @@ const props = defineProps({
 });
 
 axios.defaults.withCredentials = true;
-const apiBaseUrl = import.meta.env.VITE_BACKEND_DOMAIN;
-const fetchGridDataPayload = {
+const API_BASE_URL = import.meta.env.VITE_BACKEND_DOMAIN;
+const GRID_NAME = `DAY${props.day}:${props.location}` ;
+const FETCH_GRID_DATA_PAYLOAD = {
     day: props.day,
     location:props.location
 };
 
-const fetchGridDataSuccessful = ref(false);
+const fetchGridDataSuccessful = ref(false); // need to add a fetchGridData failed screen
 async function fetchGridData() {
     try {
-        const response = await axios.post(apiBaseUrl+endpoints.grid,fetchGridDataPayload);
+        const response = await axios.post(API_BASE_URL+endpoints.grid,FETCH_GRID_DATA_PAYLOAD);
         const columnDefs = response.data.data.columnDefs;
         const rowData = response.data.data.rowData;
         updateGrid(columnDefs,rowData);
@@ -58,11 +62,32 @@ function updateGrid(newColDefs, newRowData) {
 }
 
 async function handleCellClick(event) {
+//TODO: Allocate shift, then refresh, need to trigger matching day grids as well
 // console.log(props.day);
     // console.log(props.location);
     // console.log(apiBaseUrl + endpoints.grid);
     await fetchGridData();
 };
+
+async function addName(name) {
+    /**
+     * @param {string} name - name of person to add
+     */
+    // Add name to grid if name does not exist
+    try {
+        const ADD_NAME_PAYLOAD = {
+            "grid_name": GRID_NAME,
+            "name": name, 
+        };
+        const response = await axios.post(API_BASE_URL+endpoints.addName, ADD_NAME_PAYLOAD);
+        await fetchGridData();
+        toast.add({severity:'info', summary:'Add Name', detail: response.data.detail, life:"4000"});
+        console.log(response.data);
+    }catch(error) {
+        console.log(`'Grid for ${props.day},${props.location}:'`,error);
+        toast.add({severity:"error",summary: 'Add Name failed',detail:"Internal Server Error", life:"4000"});
+    } 
+}
 
 const rowData = ref([
   { make: 'Tesla', model: 'Model Y', price: 64950, electric: true },
@@ -76,7 +101,11 @@ const colDefs = ref([
   { field: 'price' },
   { field: 'electric' }
 ]);
+
+defineExpose({ addName });
+
 </script>
+
 
 <style>
 .ag-theme-alpine .ag-header-cell {

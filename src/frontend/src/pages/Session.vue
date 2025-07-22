@@ -5,6 +5,7 @@
     </div>
     
     <div v-else-if="!loading" class="p-4 flex">
+      <Toast/>
       <LeftDrawer v-model="drawerVisible"/>
       <div class="relative min-h-screen transition-all duration-300 w-full" :class="{ 'ml-64': drawerVisible }">
         <div class="absolute bottom-4 left-0 -ml-4">
@@ -12,14 +13,14 @@
         </div>
         <div class="grid grid-flow-col grid-cols-8 grid-rows-1 gap-2 ml-4 mr-4">
           <div class="col-span-2 flex flex-col items-center justify-center">
-            <Select v-model="selectedGrid" :options="AllGrids" optionLabel="name" placeholder="Select Grid" optionValue="code" :showClear="true" class="w-full" />
+            <Select v-model="selectedGrid" :options="ALL_GRIDS" optionLabel="name" placeholder="Select Grid" optionValue="code" :showClear="true" class="w-full" />
           </div>
           <div class="col-span-2 flex flex-col items-center justify-center">
             <InputText type="text" placeholder="Name" v-model="typedName" class="w-full"/>
           </div>
           <div class="col-span-2 flex flex-col items-center justify-center">
             <ButtonGroup class="flex w-full">
-              <Button icon="pi pi-plus" :disabled="!selectedGrid || !typedName" class="flex-1"/>
+              <Button icon="pi pi-plus" :disabled="!selectedGrid || !typedName" class="flex-1" @click="handleAddName"/>
               <Button icon="pi pi-minus" :disabled="!selectedGrid || !typedName" class="flex-1"/>
             </ButtonGroup>
           </div>
@@ -33,7 +34,7 @@
         <Divider align="center" class="control-panel-divider">
           <b>Control Panel</b>
         </Divider> 
-        <Grid :day="1" :location="'MCC'"/>
+        <Grid ref="DAY1_MCC" :day="1" :location="'MCC'"/>
       </div>
     </div>
     <div v-else class="w-full h-screen flex flex-col text-center justify-center">
@@ -56,14 +57,12 @@ import Button from 'primevue/button';
 import LocationRadio from '../components/LocationRadio.vue';
 import ShiftSizeRadio from '../components/ShiftSizeRadio.vue';
 import LeftDrawer from '../components/LeftDrawer.vue';
-const apiBaseUrl = import.meta.env.VITE_BACKEND_DOMAIN
+import { useToast } from "primevue/usetoast";
 
-const loginFailed = ref(false);
-const loading = ref(true);
-const selectedLocation = ref('MCC'); //radio button
-const selectedShiftSize = ref('Full'); // radio button
-const selectedGrid = ref(null); // select UI
-const AllGrids = ref([
+const toast = useToast();
+const API_BASE_URL = import.meta.env.VITE_BACKEND_DOMAIN
+const INVALID_NAMES = ["MCC","HCC1","HCC2"];
+const ALL_GRIDS = ref([
   {name:'DAY1:MCC',code:'DAY1:MCC'},
   {name:'DAY1:HCC1',code:'DAY1:HCC1'},
   {name:'DAY1:HCC2',code:'DAY1:HCC2'},
@@ -71,12 +70,38 @@ const AllGrids = ref([
   {name:'DAY2:HCC1',code:'DAY2:HCC1'},
   {name:'DAY2:HCC2',code:'DAY2:HCC2'},
   {name:'NIGHT DUTY', code:'DAY3:MCC'},
-])
+]);
+const loginFailed = ref(false);
+const loading = ref(true);
+const selectedLocation = ref('MCC'); //radio button
+const selectedShiftSize = ref('1'); // radio button
+const selectedGrid = ref(null); // select UI
 const typedName = ref(null); // input box
 const drawerVisible = ref(true); 
 
+const DAY1_MCC = ref(null);
+// const gridMap = new Map(); //store grid refs in JSMap 
+
+// function setGridRef(day,location) {
+//   gridMap.set("DAY"+day+":MCC");
+// }
+
+const handleAddName = async () => {
+  const nameToAdd = typedName.value.trim().toUpperCase();
+  const targetGrid  = selectedGrid.value;
+  if (INVALID_NAMES.includes(nameToAdd)) {
+    toast.add({severity:'error',summary: 'Invalid Name', detail: `Cannot add Invalid name to grid: ${INVALID_NAMES}`, life:"5000"});
+    return;
+  } 
+  if (targetGrid === "DAY1:MCC") {
+    console.log("adding name");
+    // console.log(DAY1_MCC.value);
+    DAY1_MCC.value?.addName(nameToAdd);
+  }
+};
+
 onMounted(() => {
-  axios.get(apiBaseUrl + endpoints.login, {
+  axios.get(API_BASE_URL + endpoints.login, {
     withCredentials: true // send existing cookies if any
   })
   .then(response => {

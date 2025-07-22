@@ -1,7 +1,8 @@
 const endpoints = {
-    health : "/health/",
-    login : "/login/",
-    grid :"/grid/",
+    health : "/health/", //GET
+    login : "/login/", //GET
+    grid :"/grid/", //POST
+    addName:"/grid/add/" //POST
 }
 
 export default endpoints;
