@@ -24,21 +24,22 @@ import { onBeforeUnmount, onMounted } from 'vue';
 const modelValue = defineModel();
 
 function handleKeyPress(event) {
-    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' ) {
-        if (['1','2','3'].includes(event.key)){
-            event.preventDefault();
+    const el = document.activeElement;
+    // el may be null so use ?. 
+    // || false to force bool value
+    const isTyping = el?.matches?.('input, textarea, [contenteditable]') || false;
+    if (!isTyping) {
+        switch(event.key) {
+            case '1':
+                modelValue.value = 'MCC';
+                break;
+            case '2':
+                modelValue.value = 'HCC1';
+                break;
+            case '3':
+                modelValue.value = 'HCC2';
+                break;
         }
-    }
-    switch(event.key) {
-        case '1':
-            modelValue.value = 'MCC';
-            break;
-        case '2':
-            modelValue.value = 'HCC1';
-            break;
-        case '3':
-            modelValue.value = 'HCC2';
-            break;
     }
 }
 

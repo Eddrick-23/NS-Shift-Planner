@@ -24,21 +24,22 @@ import { onBeforeUnmount, onMounted } from 'vue';
 const modelValue = defineModel();
 
 function handleKeyPress(event) {
-    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' ) {
-        if (['a','s','d'].includes(event.key)){
-            event.preventDefault();
-        }
-    }
-    switch(event.key) {
-        case 'a':
-            modelValue.value = '0.25';
-            break;
-        case 's':
-            modelValue.value = '1';
-            break;
-        case 'd':
-            modelValue.value = '0.75';
-            break;
+    const el = document.activeElement;
+    // el may be null so use ?.
+    // || false to force bool value
+    const isTyping = el?.matches?.('input, textarea, [contenteditable]') || false; //makesure always bool
+    if (!isTyping) {
+       switch(event.key) {
+            case 'a':
+                modelValue.value = '0.25';
+                break;
+            case 's':
+                modelValue.value = '1';
+                break;
+            case 'd':
+                modelValue.value = '0.75';
+                break; 
+       }
     }
 }
 
