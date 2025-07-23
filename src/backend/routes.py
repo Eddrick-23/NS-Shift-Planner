@@ -308,7 +308,7 @@ async def allocate_shift(
     name = allocate_shift_req.name.upper()
     grid_handler = manager.all_grids[target_grid]
     grid_handler = cast(GridHandler, grid_handler)
-    if name.upper() not in grid_handler.get_names():
+    if name not in grid_handler.get_names():
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
             content={"detail": f"{name} does not exist in {target_grid}"},
@@ -319,13 +319,34 @@ async def allocate_shift(
     location = allocate_shift_req.location
     time_block = allocate_shift_req.time_block
     allocation_size = allocate_shift_req.allocation_size
-    if ":30" in time_block and allocation_size != "0.75":
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={
-                "detail": "For time_blocks ending with :30, should have allocation size 0.75 only"
-            },
-        )
+    #force allocation_size "0.75" for :30 time blocks
+    if ":30" in time_block:
+        allocation_size = "0.75"
+
+    #for time blocks ending in :00, and allocation_size "1"
+        #both half allocated/ empty -> fully allocate/deallocate
+        #exactly one half allocated -> 0.25
+        #both allocated but different value -> 0.25
+    
+    #for time blocks ending in :00 and allocation_size "0.75"
+        #if first half allocated -> 0.25
+    if time_block[-2:] == "00":
+        first_half_allocated = grid_handler.is_shift_allocated(time_block,name)
+        second_half_allocated = grid_handler.is_shift_allocated(time_block[:-2]+"30",name)
+        match allocation_size:
+            case "1":
+                exactly_one_half_allocated = (first_half_allocated and not second_half_allocated) or (not first_half_allocated and second_half_allocated)
+                both_allocated = first_half_allocated and second_half_allocated
+                if exactly_one_half_allocated:
+                    allocation_size = "0.25"
+                elif both_allocated:
+                    first_location = grid_handler.get_shift_location(time_block,name)
+                    second_location = grid_handler.get_shift_location(time_block[:-2]+"30",name)
+                    if first_location != second_location:
+                        allocation_size = "0.25"
+            case "0.75":
+                if first_half_allocated:
+                    allocation_size = "0.25"
     if allocation_size == "1":
         grid_handler.allocate_shift(location, time_block, name)
         second_half = time_block[:-2] + "30"

@@ -7,13 +7,14 @@
             :rowData="rowData"
             :columnDefs="colDefs"
             domLayout="autoHeight"
-            v-on:cell-clicked="handleCellClick"
+            
+            @cell-clicked="handleCellClick"
         />
     </div>
 </template>
 
 <script setup>
-import { ref} from 'vue';
+import { onMounted, ref} from 'vue';
 import { AgGridVue } from 'ag-grid-vue3';
 import { useToast } from 'primevue/usetoast';
 import axios from 'axios';
@@ -27,6 +28,14 @@ const props = defineProps({
         required:true
     },
     location: {
+        type:String,
+        required:true
+    },
+    selectedLocation : { // passed in from radio button ref
+        type:String,
+        required:true
+    },
+    selectedShiftSize: { // passed in from radio button ref
         type:String,
         required:true
     }
@@ -57,16 +66,42 @@ async function fetchGridData() {
 
 function updateGrid(newColDefs, newRowData) {
     //update the data of the underlying aggrid
+
+    //map cell class rules to columnDefs
+
+    addCellClassRules(newColDefs);
     colDefs.value = newColDefs;
     rowData.value = newRowData;
 }
 
-async function handleCellClick(event) {
-//TODO: Allocate shift, then refresh, need to trigger matching day grids as well
-// console.log(props.day);
-    // console.log(props.location);
-    // console.log(apiBaseUrl + endpoints.grid);
-    await fetchGridData();
+function addCellClassRules(colDefs) {
+  colDefs.forEach(colDef => {
+    if (colDef.field !== 'DAY1:MCC') { //skip first col
+      colDef.cellClassRules = {
+        'bg-white text-white': params => params.value === "0",
+        'bg-green text-green': params => params.value === props.location,
+        'bg-green text-black': params => params.value !== "0" && params.value !== props.location,
+      };
+    }
+  });
+}
+
+async function handleCellClick(params) {
+    const ALLOCATE_SHIFT_PAYLOAD = {
+        "grid_name" : GRID_NAME,
+        "name": params.data[GRID_NAME],
+        "location": props.selectedLocation,
+        "time_block": params.column.getColId(),
+        "allocation_size": props.selectedShiftSize
+    };
+    console.log(ALLOCATE_SHIFT_PAYLOAD);
+    try {
+        const response = await axios.post(API_BASE_URL+endpoints.allocateShift,ALLOCATE_SHIFT_PAYLOAD);
+        await fetchGridData();
+    } catch(error) {
+        toast.add({severity:"error",summary: 'Add Name failed',detail:"Internal Server Error", life:"4000"}); 
+        console.log(`Grid for ${props.day},${props.location}:`,error);
+    }
 };
 
 async function addName(name) {
@@ -84,31 +119,75 @@ async function addName(name) {
         toast.add({severity:'info', summary:'Add Name', detail: response.data.detail, life:"4000"});
         console.log(response.data);
     }catch(error) {
-        console.log(`'Grid for ${props.day},${props.location}:'`,error);
         toast.add({severity:"error",summary: 'Add Name failed',detail:"Internal Server Error", life:"4000"});
+        console.log(`Grid for ${props.day},${props.location}:`,error);
     } 
 }
 
-const rowData = ref([
-  { make: 'Tesla', model: 'Model Y', price: 64950, electric: true },
-  { make: 'Ford', model: 'F-Series', price: 33850, electric: false },
-  { make: 'Toyota', model: 'Corolla', price: 29600, electric: false }
-]);
+async function removeName(name) {
+    try {
+        const REMOVE_NAME_PAYLOAD = {
+            "grid_name":GRID_NAME,
+            "name":name,
+        }
+        const response = await axios.delete(API_BASE_URL + endpoints.removeName, {data:REMOVE_NAME_PAYLOAD});
+        await fetchGridData();
+        toast.add({severity:'info', summary:'Remove Name', detail: response.data.detail, life:"4000"});
+        console.log(response.data);
+        
+    } catch(error) {
+        toast.add({severity:"error", summary:'Remove Name Failed', detail:"Internal Server Eror", life:"4000"});
+        console.log(`Grid for ${props.day}, ${props.location}:`, error);
+    }
+}
 
-const colDefs = ref([
-  { field: 'make' },
-  { field: 'model' },
-  { field: 'price' },
-  { field: 'electric' }
-]);
+onMounted(async () => {
+    await fetchGridData();
+})
+const rowData = ref([]);
+const colDefs = ref([]);
 
-defineExpose({ addName });
+defineExpose({ addName, removeName});
 
 </script>
 
 
 <style>
+/* Header cells */
 .ag-theme-alpine .ag-header-cell {
   border: 1px solid #ccc;
 }
+
+/* Data cells */
+.ag-theme-alpine .ag-cell {
+  border: 1px solid #ccc;
+  transition: border 0.3s ease, box-shadow 0.3s ease;
+}
+/* On hover change border to blue */
+.ag-theme-alpine .ag-cell:hover {
+  border: 1px solid #0768fa;
+  box-shadow: 0 0 4px rgba(150, 150, 200, 0.3);
+  z-index: 1;
+}
+
+.bg-white {
+  background-color: white;
+}
+
+.text-white {
+  color: white;
+}
+
+.bg-green {
+  background-color: rgb(0, 190, 0);
+}
+
+.text-green {
+  color: rgb(0, 190, 0);
+}
+
+.text-black {
+  color: black;
+}
+
 </style>

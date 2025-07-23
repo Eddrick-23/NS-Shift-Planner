@@ -21,7 +21,7 @@
           <div class="col-span-2 flex flex-col items-center justify-center">
             <ButtonGroup class="flex w-full">
               <Button icon="pi pi-plus" :disabled="!selectedGrid || !typedName" class="flex-1" @click="handleAddName"/>
-              <Button icon="pi pi-minus" :disabled="!selectedGrid || !typedName" class="flex-1"/>
+              <Button icon="pi pi-minus" :disabled="!selectedGrid || !typedName" class="flex-1" @click="handleRemoveName"/>
             </ButtonGroup>
           </div>
           <div class="col-span-1 flex flex-col items-center justify-center">
@@ -34,7 +34,7 @@
         <Divider align="center" class="control-panel-divider">
           <b>Control Panel</b>
         </Divider> 
-        <Grid ref="DAY1_MCC" :day="1" :location="'MCC'"/>
+        <Grid ref="DAY1_MCC" :day="1" :location="'MCC'" :selectedLocation="selectedLocation" :selectedShiftSize="selectedShiftSize"/>
       </div>
     </div>
     <div v-else class="w-full h-screen flex flex-col text-center justify-center">
@@ -95,8 +95,16 @@ const handleAddName = async () => {
   } 
   if (targetGrid === "DAY1:MCC") {
     console.log("adding name");
-    // console.log(DAY1_MCC.value);
     DAY1_MCC.value?.addName(nameToAdd);
+  }
+};
+
+const handleRemoveName = async () => {
+  const nameToRemove = typedName.value.trim().toUpperCase();
+  const targetGrid = selectedGrid.value;
+  if (targetGrid === "DAY1:MCC") {
+    console.log("removing name");
+    DAY1_MCC.value?.removeName(nameToRemove);
   }
 };
 

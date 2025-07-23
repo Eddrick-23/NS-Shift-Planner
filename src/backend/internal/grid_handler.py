@@ -367,7 +367,7 @@ class GridHandler:
     def get_shift_location(self, time_block, name):
         """
         time_block(str):
-            str in "HH:MM:SS" Format. In 30 min intervals
+            str in "HH:MM" Format. In 30 min intervals
         name(str):
             name of person. Must already exist in column
         """
@@ -521,18 +521,12 @@ class GridHandler:
         # fix first column width
         column_defs[0]["width"] = 150
         column_defs[0]["suppressSizeToFit"] = True  # fix column width
-        # add flex to rest of columns and cell calss rules
-        cell_class_rules = {
-            "bg-white text-white": 'x=="0"',
-            "bg-green text-green": f'x=="{self.location}"',
-            "bg-green text-black": f'x != 0 && x !=="{self.location}"',
-        }
+        # add flex to rest of columns
         for i in range(1, len(column_defs)):
             data = column_defs[i]
             data["flex"] = 1
             data["resizable"] = False
             data["sortable"] = False
-            data["cellClassRules"] = cell_class_rules
         return column_defs
 
     def serialise_for_storage(self):
