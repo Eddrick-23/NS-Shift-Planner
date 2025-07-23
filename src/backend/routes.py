@@ -280,7 +280,7 @@ async def add_name(
 async def remove_name(
     request: Request, remove_req:AddOrRemoveRequest, manager: GridManager = Depends(get_manager)
 ):
-    target_grid = request.grid_name
+    target_grid = remove_req.grid_name
     day = target_grid[3]
     name = remove_req.name.upper()
     grid_handler = manager.all_grids[target_grid]
