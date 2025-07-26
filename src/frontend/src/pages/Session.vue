@@ -31,7 +31,7 @@
         <Divider align="center" class="control-panel-divider">
           <b>Control Panel</b>
         </Divider>
-        <div class="relative">
+        <div class="relative h-full">
           <div class="absolute h-full bottom-0 left-0 -ml-4 opacity-0 hover:opacity-100 transition-opacity duration-300">
             <Button 
             :icon="drawerVisible ? 'pi pi-arrow-left' : 'pi pi-arrow-right'" 
