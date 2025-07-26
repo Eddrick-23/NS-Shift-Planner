@@ -8,9 +8,6 @@
       <Toast/>
       <LeftDrawer v-model="drawerVisible"/>
       <div class="relative min-h-screen transition-all duration-300 w-full" :class="{ 'ml-64': drawerVisible }">
-        <div class="absolute bottom-4 left-0 -ml-4">
-          <Button :icon="drawerVisible ? 'pi pi-arrow-left' : 'pi pi-arrow-right'" @click="drawerVisible = !drawerVisible"/>
-        </div>
         <div class="grid grid-flow-col grid-cols-8 grid-rows-1 gap-2 ml-4 mr-4">
           <div class="col-span-2 flex flex-col items-center justify-center">
             <Select v-model="selectedGrid" :options="ALL_GRIDS" optionLabel="name" placeholder="Select Grid" optionValue="code" :showClear="true" class="w-full" />
@@ -33,8 +30,65 @@
         </div>
         <Divider align="center" class="control-panel-divider">
           <b>Control Panel</b>
-        </Divider> 
-        <Grid ref="DAY1_MCC" :day="1" :location="'MCC'" :selectedLocation="selectedLocation" :selectedShiftSize="selectedShiftSize"/>
+        </Divider>
+        <div class="relative">
+          <div class="absolute h-full bottom-0 left-0 -ml-4 opacity-0 hover:opacity-100 transition-opacity duration-300">
+            <Button 
+            :icon="drawerVisible ? 'pi pi-arrow-left' : 'pi pi-arrow-right'" 
+            @click="drawerVisible = !drawerVisible"
+            class="h-full"
+            />
+          </div>
+          <Grid :ref="gridMap.get('DAY1:MCC')" 
+          :day="1" 
+          :location="'MCC'" 
+          :selectedLocation="selectedLocation" 
+          :selectedShiftSize="selectedShiftSize"
+          @shift-allocated="handleGridClick"
+          />
+          <Grid :ref="gridMap.get('DAY1:HCC1')" 
+          :day="1" 
+          :location="'HCC1'" 
+          :selectedLocation="selectedLocation" 
+          :selectedShiftSize="selectedShiftSize"
+          @shift-allocated="handleGridClick"
+          />
+          <Grid :ref="gridMap.get('DAY1:HCC2')" 
+          :day="1" 
+          :location="'HCC2'" 
+          :selectedLocation="selectedLocation" 
+          :selectedShiftSize="selectedShiftSize"
+          @shift-allocated="handleGridClick"
+          />
+          <Grid :ref="gridMap.get('DAY2:MCC')" 
+          :day="2" 
+          :location="'MCC'" 
+          :selectedLocation="selectedLocation" 
+          :selectedShiftSize="selectedShiftSize"
+          @shift-allocated="handleGridClick"
+          />
+          <Grid :ref="gridMap.get('DAY2:HCC1')" 
+          :day="2" 
+          :location="'HCC1'" 
+          :selectedLocation="selectedLocation" 
+          :selectedShiftSize="selectedShiftSize"
+          @shift-allocated="handleGridClick"
+          />
+          <Grid :ref="gridMap.get('DAY2:HCC2')" 
+          :day="2" 
+          :location="'HCC2'" 
+          :selectedLocation="selectedLocation" 
+          :selectedShiftSize="selectedShiftSize"
+          @shift-allocated="handleGridClick"
+          />
+          <Grid :ref="gridMap.get('DAY3:MCC')" 
+          :day="3" 
+          :location="'MCC'" 
+          :selectedLocation="selectedLocation" 
+          :selectedShiftSize="selectedShiftSize"
+          @shift-allocated="handleGridClick"
+          />
+        </div> 
       </div>
     </div>
     <div v-else class="w-full h-screen flex flex-col text-center justify-center">
@@ -79,12 +133,19 @@ const selectedGrid = ref(null); // select UI
 const typedName = ref(null); // input box
 const drawerVisible = ref(true); 
 
-const DAY1_MCC = ref(null);
-// const gridMap = new Map(); //store grid refs in JSMap 
+const gridMap = new Map(); //store grid refs in Map
 
-// function setGridRef(day,location) {
-//   gridMap.set("DAY"+day+":MCC");
-// }
+async function handleGridClick(day) {
+  //call back to update matching day grids when shift-allocated
+  const dayStr = day.toString();
+  let promises = []; //store all function callbacks
+  for (const[key,gridRef] of gridMap) {
+    if (key.includes(dayStr)) {
+      promises.push(gridRef?.value?.fetchGridData());
+    } 
+  } 
+  await Promise.all(promises);
+}
 
 const handleAddName = async () => {
   const nameToAdd = typedName.value.trim().toUpperCase();
@@ -92,23 +153,19 @@ const handleAddName = async () => {
   if (INVALID_NAMES.includes(nameToAdd)) {
     toast.add({severity:'error',summary: 'Invalid Name', detail: `Cannot add Invalid name to grid: ${INVALID_NAMES}`, life:"5000"});
     return;
-  } 
-  if (targetGrid === "DAY1:MCC") {
-    console.log("adding name");
-    DAY1_MCC.value?.addName(nameToAdd);
   }
+  const targetGridRef = gridMap.get(targetGrid); 
+  targetGridRef.value?.addName(nameToAdd);
 };
 
 const handleRemoveName = async () => {
   const nameToRemove = typedName.value.trim().toUpperCase();
   const targetGrid = selectedGrid.value;
-  if (targetGrid === "DAY1:MCC") {
-    console.log("removing name");
-    DAY1_MCC.value?.removeName(nameToRemove);
-  }
+  const targetGridRef = gridMap.get(targetGrid); 
+  targetGridRef.value?.removeName(nameToRemove);
 };
 
-onMounted(() => {
+function checkLoginStatus() {
   axios.get(API_BASE_URL + endpoints.login, {
     withCredentials: true // send existing cookies if any
   })
@@ -128,6 +185,29 @@ onMounted(() => {
       console.log('Error:', error.message);
     }
   });
+}
+
+function setGridRef(day,location) {
+  const gridRef = ref(null);
+  gridMap.set(`DAY${day}:${location}`, gridRef);
+}
+
+function setAllGridRef() {
+  const DAY = [1,2,3];
+  const LOCATION = ["MCC","HCC1", "HCC2"];
+  for (const day of DAY) {
+    for (const loc of LOCATION) {
+      if (day === 3 && loc !== "MCC") {
+        continue;
+      }
+      setGridRef(day,loc);
+    }
+  }
+}
+
+onMounted(() => {
+  checkLoginStatus();
+  setAllGridRef();
 });
 
 </script>

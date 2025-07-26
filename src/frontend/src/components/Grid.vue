@@ -1,27 +1,43 @@
 <template>
-    <!-- <div v-if=""></div> -->
-    <div class="p-4">
+    <div v-if="!fetchGridDataSuccessful" class="w-full flex flex-col text-center justify-center">
+        <p style="color: red">Unable to fetch grid data</p>
+    </div>
+    <div v-else-if="props.location === 'HCC2' && rowData && rowData.length > 0" class="ml-2 mr-2 mb-1">
+        <ag-grid-vue
+        class="ag-theme-alpine"
+            style="width: 100%" 
+            :style="{height:72 + 35.5*(Math.max(rowData.length-1,0)) + 'px'}"
+            :row-height="35"
+            :header-height="35"
+            :rowData="rowData"
+            :columnDefs="colDefs"
+            @cell-clicked="handleCellClick"
+        />
+    </div>
+    <div v-else-if="props.location !== 'HCC2'" class="ml-6 mr-2 mb-1">
         <ag-grid-vue
         class="ag-theme-alpine"
             style="width: 100%"
+            :style="{height:72 + 35.5*(Math.max(rowData.length-1,0)) + 'px'}"
+            :row-height="35"
+            :header-height="35"
             :rowData="rowData"
             :columnDefs="colDefs"
-            domLayout="autoHeight"
-            
             @cell-clicked="handleCellClick"
         />
     </div>
 </template>
 
 <script setup>
-import { onMounted, ref} from 'vue';
+import { onMounted, ref, defineEmits} from 'vue';
 import { AgGridVue } from 'ag-grid-vue3';
 import { useToast } from 'primevue/usetoast';
 import axios from 'axios';
 import endpoints from "../api/api.js";
 
 const toast = useToast(); // <Toast /> already added on main page
-
+const emit = defineEmits(['shift-allocated']);
+const rowHeight = 35;
 const props = defineProps({
     day: {
         type:Number,
@@ -49,7 +65,7 @@ const FETCH_GRID_DATA_PAYLOAD = {
     location:props.location
 };
 
-const fetchGridDataSuccessful = ref(false); // need to add a fetchGridData failed screen
+const fetchGridDataSuccessful = ref(true); // need to add a fetchGridData failed screen
 async function fetchGridData() {
     try {
         const response = await axios.post(API_BASE_URL+endpoints.grid,FETCH_GRID_DATA_PAYLOAD);
@@ -76,7 +92,7 @@ function updateGrid(newColDefs, newRowData) {
 
 function addCellClassRules(colDefs) {
   colDefs.forEach(colDef => {
-    if (colDef.field !== 'DAY1:MCC') { //skip first col
+    if (colDef.field !== GRID_NAME) { //skip first col
       colDef.cellClassRules = {
         'bg-white text-white': params => params.value === "0",
         'bg-green text-green': params => params.value === props.location,
@@ -98,6 +114,7 @@ async function handleCellClick(params) {
     try {
         const response = await axios.post(API_BASE_URL+endpoints.allocateShift,ALLOCATE_SHIFT_PAYLOAD);
         await fetchGridData();
+        emit('shift-allocated',props.day);
     } catch(error) {
         toast.add({severity:"error",summary: 'Add Name failed',detail:"Internal Server Error", life:"4000"}); 
         console.log(`Grid for ${props.day},${props.location}:`,error);
@@ -134,8 +151,11 @@ async function removeName(name) {
         await fetchGridData();
         toast.add({severity:'info', summary:'Remove Name', detail: response.data.detail, life:"4000"});
         console.log(response.data);
-        
     } catch(error) {
+        if (error.response.status === 404) {
+            toast.add({severity:"warn", summary:'Remove Name Failed', detail:"Name does not exist", life:"4000"});
+            return;
+        }
         toast.add({severity:"error", summary:'Remove Name Failed', detail:"Internal Server Eror", life:"4000"});
         console.log(`Grid for ${props.day}, ${props.location}:`, error);
     }
@@ -147,7 +167,7 @@ onMounted(async () => {
 const rowData = ref([]);
 const colDefs = ref([]);
 
-defineExpose({ addName, removeName});
+defineExpose({ addName, removeName, fetchGridData});
 
 </script>
 
