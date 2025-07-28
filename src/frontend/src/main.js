@@ -14,6 +14,7 @@ import TabList from 'primevue/tablist';
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import Toast from 'primevue/toast';
 import ToastService from 'primevue/toastservice';
+import Tooltip from 'primevue/tooltip'
 
 // Register all Community features
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -34,6 +35,7 @@ app.use(PrimeVue, {
     }
  });
 app.use(ToastService);
+app.directive('tooltip', Tooltip);
  // Register components globally
 app.component('Toast',Toast);
 app.component('Button', Button);

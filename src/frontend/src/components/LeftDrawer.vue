@@ -5,15 +5,23 @@
         :modal="false" 
         :dismissable="false"
         position="left" 
-        class="!w-64 p-0 custom-drawer">
-        <p>sidebar content</p>
+        class="!w-100 p-0 custom-drawer">
+        <HourGrid ref="hourGrid" v-if="modelValue"/>
     </Drawer>
 </template> 
 
 <script setup>
+import {ref} from 'vue';
 import Drawer from 'primevue/drawer';
+import HourGrid from '../components/HourGrid.vue';
 const modelValue = defineModel();
 
+const hourGrid = ref(null);
+
+//expose to parent
+defineExpose({
+  hourGrid,
+});
 </script>
 
 <style>

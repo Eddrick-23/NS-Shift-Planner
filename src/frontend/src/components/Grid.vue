@@ -2,13 +2,14 @@
     <div v-if="!fetchGridDataSuccessful" class="w-full flex flex-col text-center justify-center">
         <p style="color: red">Unable to fetch grid data</p>
     </div>
-    <div v-else-if="props.location === 'HCC2' && rowData && rowData.length > 0" class="ml-2 mr-2 mb-1">
+    <div v-else-if="props.location === 'HCC2' && rowData && rowData.length > 0" class="ml-6 mr-2 mb-1">
         <ag-grid-vue
-        class="ag-theme-alpine"
-            style="width: 100%" 
-            :style="{height:72 + 35.5*(Math.max(rowData.length-1,0)) + 'px'}"
-            :row-height="35"
-            :header-height="35"
+            class="customGrid"
+            :theme="myTheme"
+            style="width: 100%"
+            :style="{height:63 + 31.5*(Math.max(rowData.length-1,0)) + 'px'}"
+            :row-height="30"
+            :header-height="30"
             :rowData="rowData"
             :columnDefs="colDefs"
             @cell-clicked="handleCellClick"
@@ -16,11 +17,12 @@
     </div>
     <div v-else-if="props.location !== 'HCC2'" class="ml-6 mr-2 mb-1">
         <ag-grid-vue
-        class="ag-theme-alpine"
+            class="customGrid"
+            :theme="myTheme"
             style="width: 100%"
-            :style="{height:72 + 35.5*(Math.max(rowData.length-1,0)) + 'px'}"
-            :row-height="35"
-            :header-height="35"
+            :style="{height:63 + 31.5*(Math.max(rowData.length-1,0)) + 'px'}"
+            :row-height="30"
+            :header-height="30"
             :rowData="rowData"
             :columnDefs="colDefs"
             @cell-clicked="handleCellClick"
@@ -29,11 +31,20 @@
 </template>
 
 <script setup>
-import { onMounted, ref, defineEmits} from 'vue';
+import { onMounted, ref} from 'vue';
 import { AgGridVue } from 'ag-grid-vue3';
+import {themeQuartz} from 'ag-grid-community'; 
 import { useToast } from 'primevue/usetoast';
 import axios from 'axios';
 import endpoints from "../api/api.js";
+
+const myTheme = themeQuartz.withParams({
+    headerColumnBorder:{style:'solid',width:"1px"},
+    headerRowBorder: {style:'solid',width:"1px"},
+    rowBorder: { style: 'solid',width:"1.5px"},
+    columnBorder: { style: 'solid',width:"1.5px"}, 
+});
+
 
 const toast = useToast(); // <Toast /> already added on main page
 const emit = defineEmits(['shift-allocated']);
@@ -82,7 +93,6 @@ async function fetchGridData() {
 
 function updateGrid(newColDefs, newRowData) {
     //update the data of the underlying aggrid
-
     //map cell class rules to columnDefs
 
     addCellClassRules(newColDefs);
@@ -174,18 +184,14 @@ defineExpose({ addName, removeName, fetchGridData});
 
 <style>
 /* Header cells */
-.ag-theme-alpine .ag-header-cell {
-  border: 1px solid #ccc;
-}
 
 /* Data cells */
-.ag-theme-alpine .ag-cell {
-  border: 1px solid #ccc;
-  transition: border 0.3s ease, box-shadow 0.3s ease;
+.customGrid .ag-cell {
+  transition: border 0.1s ease, box-shadow 0.2s ease;
 }
 /* On hover change border to blue */
-.ag-theme-alpine .ag-cell:hover {
-  border: 1px solid #0768fa;
+.customGrid .ag-cell:hover {
+  border: 1.5px solid #0768fa;
   box-shadow: 0 0 4px rgba(150, 150, 200, 0.3);
   z-index: 1;
 }

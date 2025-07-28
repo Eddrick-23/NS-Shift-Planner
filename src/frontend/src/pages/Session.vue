@@ -6,8 +6,8 @@
     
     <div v-else-if="!loading" class="p-4 flex">
       <Toast/>
-      <LeftDrawer v-model="drawerVisible"/>
-      <div class="relative min-h-screen transition-all duration-300 w-full" :class="{ 'ml-64': drawerVisible }">
+      <LeftDrawer ref="leftDrawer" v-model="drawerVisible"/>
+      <div class="relative min-h-screen transition-all duration-300 w-full" :class="{ 'ml-100': drawerVisible }">
         <div class="grid grid-flow-col grid-cols-8 grid-rows-1 gap-2 ml-4 mr-4">
           <div class="col-span-2 flex flex-col items-center justify-center">
             <Select v-model="selectedGrid" :options="ALL_GRIDS" optionLabel="name" placeholder="Select Grid" optionValue="code" :showClear="true" class="w-full" />
@@ -31,12 +31,12 @@
         <Divider align="center" class="control-panel-divider">
           <b>Control Panel</b>
         </Divider>
-        <div class="relative h-full">
-          <div class="absolute h-full bottom-0 left-0 -ml-4 opacity-0 hover:opacity-100 transition-opacity duration-300">
+        <div class="h-full">
+          <div class="absolute h-full flex items-center justify-center bottom-0 left-0 -ml-5 opacity-0 hover:opacity-100 transition-opacity duration-300">
             <Button 
             :icon="drawerVisible ? 'pi pi-arrow-left' : 'pi pi-arrow-right'" 
             @click="drawerVisible = !drawerVisible"
-            class="h-full"
+            class="h-1/2 sidebar-button"
             />
           </div>
           <Grid :ref="gridMap.get('DAY1:MCC')" 
@@ -88,6 +88,7 @@
           :selectedShiftSize="selectedShiftSize"
           @shift-allocated="handleGridClick"
           />
+          <Dock />
         </div> 
       </div>
     </div>
@@ -111,6 +112,7 @@ import Button from 'primevue/button';
 import LocationRadio from '../components/LocationRadio.vue';
 import ShiftSizeRadio from '../components/ShiftSizeRadio.vue';
 import LeftDrawer from '../components/LeftDrawer.vue';
+import Dock from '../components/Dock.vue';
 import { useToast } from "primevue/usetoast";
 
 const toast = useToast();
@@ -132,6 +134,7 @@ const selectedShiftSize = ref('1'); // radio button
 const selectedGrid = ref(null); // select UI
 const typedName = ref(null); // input box
 const drawerVisible = ref(true); 
+const leftDrawer = ref(null);
 
 const gridMap = new Map(); //store grid refs in Map
 
@@ -145,6 +148,7 @@ async function handleGridClick(day) {
     } 
   } 
   await Promise.all(promises);
+  await updateHourGrid();
 }
 
 const handleAddName = async () => {
@@ -155,15 +159,22 @@ const handleAddName = async () => {
     return;
   }
   const targetGridRef = gridMap.get(targetGrid); 
-  targetGridRef.value?.addName(nameToAdd);
+  await targetGridRef.value?.addName(nameToAdd);
+  await updateHourGrid();
 };
 
 const handleRemoveName = async () => {
   const nameToRemove = typedName.value.trim().toUpperCase();
   const targetGrid = selectedGrid.value;
   const targetGridRef = gridMap.get(targetGrid); 
-  targetGridRef.value?.removeName(nameToRemove);
+  await targetGridRef.value?.removeName(nameToRemove);
+  await updateHourGrid();
+
 };
+
+const updateHourGrid = async() => {
+  leftDrawer.value?.hourGrid?.fetchHourData();
+}
 
 function checkLoginStatus() {
   axios.get(API_BASE_URL + endpoints.login, {
@@ -216,5 +227,9 @@ onMounted(() => {
 <style>
 .control-panel-divider{
   --p-divider-border-color:#0a0100 
+}
+.sidebar-button {
+--p-button-border-radius: 0 9999px 9999px 0;
+
 }
 </style>

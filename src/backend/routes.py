@@ -4,7 +4,16 @@ import base64
 import logging
 from typing import cast
 from fastapi.responses import JSONResponse, StreamingResponse
-from fastapi import APIRouter, Depends, status, HTTPException, Request, Header, Cookie
+from fastapi import (
+    APIRouter,
+    Depends,
+    status,
+    HTTPException,
+    Request,
+    UploadFile,
+    File,
+    Cookie,
+)
 from pydantic import BaseModel, Field
 from typing import Annotated, Literal
 from google.cloud.firestore import Client
@@ -12,11 +21,13 @@ from src.backend.internal.grid_manager import GridManager, GridHandler
 import src.backend.internal.time_blocks as tb
 from src.backend.internal.lru_cache import CustomLRUCache
 from src.backend.config import config
+
 router = APIRouter()
 
 DB_COLLECTION_NAME = config.DB_COLLECTION_NAME
 
-def restore_from_database(db:Client,session_id: str) -> GridManager:
+
+def restore_from_database(db: Client, session_id: str) -> GridManager:
     """
     Restore GridManager Instance using saved data in firestore
 
@@ -34,7 +45,10 @@ def restore_from_database(db:Client,session_id: str) -> GridManager:
     manager = GridManager.deserialise_from_zip(decoded_bytes)
     return manager
 
-def valid_id(session_id:str, cache:CustomLRUCache, all_ids:set) -> tuple[bool,str|None]:
+
+def valid_id(
+    session_id: str, cache: CustomLRUCache, all_ids: set
+) -> tuple[bool, str | None]:
     """
     Checks if a session_id exists in cache or database
 
@@ -46,30 +60,31 @@ def valid_id(session_id:str, cache:CustomLRUCache, all_ids:set) -> tuple[bool,st
         return True, "cache"
     if session_id in all_ids:
         return True, "db"
-    
-    return False,None
-    
 
-def get_manager(request:Request,session_id = Cookie(..., alias="session_id")) -> GridManager:
+    return False, None
+
+
+def get_manager(
+    request: Request, session_id=Cookie(..., alias="session_id")
+) -> GridManager:
     logging.debug(session_id)
-    cache:CustomLRUCache = request.app.state.manager_cache
-    all_ids:set = request.app.state.all_ids
+    cache: CustomLRUCache = request.app.state.manager_cache
+    all_ids: set = request.app.state.all_ids
 
-    valid, location = valid_id(session_id,cache,all_ids)
+    valid, location = valid_id(session_id, cache, all_ids)
 
     if not valid:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Session not found"
         )
-    
+
     if location == "cache":
         logging.debug("Cache hit, returning cached manager")
         manager = cache[session_id]
     if location == "db":
         manager = restore_from_database(request.app.state.db, session_id)
         logging.debug("Restored from database")
-        cache[session_id] = manager #store in cache
+        cache[session_id] = manager  # store in cache
     manager.requires_sync = True
     return manager
 
@@ -83,7 +98,7 @@ class UploadRequest(BaseModel):
 
 class FetchGridRequest(BaseModel):
     day: Literal[1, 2, 3]
-    location:Literal["MCC","HCC1","HCC2"]
+    location: Literal["MCC", "HCC1", "HCC2"]
 
 
 class AddOrRemoveRequest(BaseModel):
@@ -117,62 +132,72 @@ class SwapNameRequest(BaseModel):
     ]
     names: Annotated[list[str], Field(min_length=2, max_length=2)]
 
+
 class loginRequest(BaseModel):
-    session_id : str | None = None
+    session_id: str | None = None
 
 
 @router.get("/login/")
-async def login(request:Request, session_id: str|None = Cookie(None,alias="session_id")):
-    #handle login requests
-    #if there is no session id, issue an id
-    #if there is a session id, authenticate it first before issuing
+async def login(
+    request: Request, session_id: str | None = Cookie(None, alias="session_id")
+):
+    # handle login requests
+    # if there is no session id, issue an id
+    # if there is a session id, authenticate it first before issuing
 
-    #issue session id in http header
+    # issue session id in http header
     id_valid = False
     if session_id is not None:
-        valid, _ = valid_id(session_id,request.app.state.manager_cache, request.app.state.all_ids)
+        valid, _ = valid_id(
+            session_id, request.app.state.manager_cache, request.app.state.all_ids
+        )
         id_valid = valid
 
-    if not id_valid: #no session id or no id_valid
+    if not id_valid:  # no session id or no id_valid
         session_id = str(uuid.uuid4())
         manager = GridManager()
-        request.app.state.all_ids.add(session_id) #add to existing ids
-        request.app.state.manager_cache[session_id] = manager #add to lru cache
-    
-    response = JSONResponse(status_code=status.HTTP_200_OK, content={"detail":"login successful"})
+        request.app.state.all_ids.add(session_id)  # add to existing ids
+        request.app.state.manager_cache[session_id] = manager  # add to lru cache
 
-    #set session_id and in the http cookies
+    response = JSONResponse(
+        status_code=status.HTTP_200_OK, content={"detail": "login successful"}
+    )
+
+    # set session_id and in the http cookies
     if config.ENVIRONMENT == "PROD":
-        response.set_cookie(key="session_id",
-                            value=session_id,
-                            httponly=True,
-                            secure=True,
-                            samesite="lax",
-                            domain=config.FRONT_END_DOMAIN
-                            )
+        response.set_cookie(
+            key="session_id",
+            value=session_id,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            domain=config.FRONT_END_DOMAIN,
+        )
     else:
-        response.set_cookie(key="session_id",
-                            value=session_id,
-                            httponly=True,
-                            secure=False,
-                            samesite="lax",
-                            )
+        response.set_cookie(
+            key="session_id",
+            value=session_id,
+            httponly=True,
+            secure=False,
+            samesite="lax",
+        )
     return response
+
 
 @router.get("/health/")
 async def health_check():
-    return {"status":"ok"}
+    return {"status": "ok"}
 
 
-@router.get("/cached_items/") #protected
-async def get_num_cached_items(request:Request):
+@router.get("/cached_items/")  # protected
+async def get_num_cached_items(request: Request):
     cache: CustomLRUCache = request.app.state.manager_cache
     response = {"current_size": cache.currsize, "num_items": len(cache.items())}
     return JSONResponse(status_code=status.HTTP_200_OK, content=response)
 
 
-@router.get("/session_exists/") #protected
-async def session_exists(request:Request,session_id: str):
+@router.get("/session_exists/")  # protected
+async def session_exists(request: Request, session_id: str):
     logging.debug(request.app.state.all_ids._set)
     response = {"exists": session_id in request.app.state.all_ids}
     return JSONResponse(status_code=status.HTTP_200_OK, content=response)
@@ -180,7 +205,9 @@ async def session_exists(request:Request,session_id: str):
 
 @router.post("/grid/")  # get all grid data for a specified day
 async def get_grid(
-    request:Request, fetch_grid_req:FetchGridRequest, manager: GridManager = Depends(get_manager)
+    request: Request,
+    fetch_grid_req: FetchGridRequest,
+    manager: GridManager = Depends(get_manager),
 ):
     result = {}
     bit_masks = {}
@@ -208,7 +235,9 @@ async def get_grid(
 
 @router.post("/grid/compressed")
 async def get_grid_compressed(
-    request: Request, fetch_grid_req:FetchGridRequest, manager: GridManager = Depends(get_manager)
+    request: Request,
+    fetch_grid_req: FetchGridRequest,
+    manager: GridManager = Depends(get_manager),
 ):
     day = fetch_grid_req.day
     if day != 3:
@@ -249,7 +278,9 @@ async def get_names(
 
 @router.post("/grid/add/")
 async def add_name(
-    request: Request, add_req:AddOrRemoveRequest, manager: GridManager = Depends(get_manager)
+    request: Request,
+    add_req: AddOrRemoveRequest,
+    manager: GridManager = Depends(get_manager),
 ):
     target_grid = add_req.grid_name
     day = target_grid[3]
@@ -278,7 +309,9 @@ async def add_name(
 
 @router.delete("/grid/remove/")
 async def remove_name(
-    request: Request, remove_req:AddOrRemoveRequest, manager: GridManager = Depends(get_manager)
+    request: Request,
+    remove_req: AddOrRemoveRequest,
+    manager: GridManager = Depends(get_manager),
 ):
     target_grid = remove_req.grid_name
     day = target_grid[3]
@@ -302,7 +335,9 @@ async def remove_name(
 
 @router.post("/grid/allocate/")
 async def allocate_shift(
-    request:Request, allocate_shift_req:AllocateShiftRequest, manager: GridManager = Depends(get_manager)
+    request: Request,
+    allocate_shift_req: AllocateShiftRequest,
+    manager: GridManager = Depends(get_manager),
 ):
     target_grid = allocate_shift_req.grid_name
     name = allocate_shift_req.name.upper()
@@ -319,29 +354,35 @@ async def allocate_shift(
     location = allocate_shift_req.location
     time_block = allocate_shift_req.time_block
     allocation_size = allocate_shift_req.allocation_size
-    #force allocation_size "0.75" for :30 time blocks
+    # force allocation_size "0.75" for :30 time blocks
     if ":30" in time_block:
         allocation_size = "0.75"
 
-    #for time blocks ending in :00, and allocation_size "1"
-        #both half allocated/ empty -> fully allocate/deallocate
-        #exactly one half allocated -> 0.25
-        #both allocated but different value -> 0.25
-    
-    #for time blocks ending in :00 and allocation_size "0.75"
-        #if second half allocated -> 0.25
+    # for time blocks ending in :00, and allocation_size "1"
+    # both half allocated/ empty -> fully allocate/deallocate
+    # exactly one half allocated -> 0.25
+    # both allocated but different value -> 0.25
+
+    # for time blocks ending in :00 and allocation_size "0.75"
+    # if second half allocated -> 0.25
     if time_block[-2:] == "00":
-        first_half_allocated = grid_handler.is_shift_allocated(time_block,name)
-        second_half_allocated = grid_handler.is_shift_allocated(time_block[:-2]+"30",name)
+        first_half_allocated = grid_handler.is_shift_allocated(time_block, name)
+        second_half_allocated = grid_handler.is_shift_allocated(
+            time_block[:-2] + "30", name
+        )
         match allocation_size:
             case "1":
-                exactly_one_half_allocated = (first_half_allocated and not second_half_allocated) or (not first_half_allocated and second_half_allocated)
+                exactly_one_half_allocated = (
+                    first_half_allocated and not second_half_allocated
+                ) or (not first_half_allocated and second_half_allocated)
                 both_allocated = first_half_allocated and second_half_allocated
                 if exactly_one_half_allocated:
                     allocation_size = "0.25"
                 elif both_allocated:
-                    first_location = grid_handler.get_shift_location(time_block,name)
-                    second_location = grid_handler.get_shift_location(time_block[:-2]+"30",name)
+                    first_location = grid_handler.get_shift_location(time_block, name)
+                    second_location = grid_handler.get_shift_location(
+                        time_block[:-2] + "30", name
+                    )
                     if first_location != second_location:
                         allocation_size = "0.25"
             case "0.75":
@@ -375,36 +416,26 @@ async def get_all_hours(request: Request, manager: GridManager = Depends(get_man
             {
                 "headerName": "Name",
                 "field": "Name",
-                "width": 100,
-                "suppressSizeToFit": True,
             },
             {
                 "headerName": "Day 1",
                 "field": "Day 1",
-                "flex": 1,
-                "resizable": False,
             },
             {
                 "headerName": "Day 2",
                 "field": "Day 2",
-                "flex": 1,
-                "resizable": False,
             },
             {
                 "headerName": "Day 3",
                 "field": "Day 3",
-                "flex": 1,
-                "resizable": False,
             },
             {
                 "headerName": "Total",
                 "field": "Total",
-                "flex": 1,
-                "resizable": False,
             },
         ],
         "rowData": row_data,
-        "pinned_bottom_row": pinned_row_data,
+        "pinnedBottomRowData": pinned_row_data,
     }
     return response
 
@@ -424,11 +455,18 @@ async def save_as_file(request: Request, manager: GridManager = Depends(get_mana
 
 
 @router.post("/upload/")
-async def upload_file(request: Request, manager: GridManager = Depends(get_manager)):
+async def upload_file(
+    request: Request,
+    file: UploadFile = File(...),
+    session_id: str = Cookie(..., alias="session_id"),
+    manager: GridManager = Depends(get_manager),
+):
     try:
-        zip_bytes = await request.body()
+        zip_bytes = await file.read()
         manager_instance = GridManager.deserialise_from_zip(zip_bytes)
-        request.app.state.manager_cache[request.headers["X-Session-ID"]] = manager_instance
+        request.app.state.manager_cache[session_id] = (
+            manager_instance
+        )
         return JSONResponse(status_code=status.HTTP_200_OK, content={"detail": "ok"})
     except Exception as e:
         logging.debug(f"{str(e)}")
@@ -441,8 +479,10 @@ async def upload_file(request: Request, manager: GridManager = Depends(get_manag
 
 
 @router.delete("/reset-all/")
-async def reset_all(request: Request, manager: GridManager = Depends(get_manager)):
-    request.app.state.manager_cache[request.headers["X-Session-ID"]] = GridManager()
+async def reset_all(request: Request,
+                    session_id: str = Cookie(..., alias="session_id"),
+                    manager: GridManager = Depends(get_manager)):
+    request.app.state.manager_cache[session_id] = GridManager()
     return JSONResponse(
         status_code=status.HTTP_200_OK, content={"detail": "data resetted"}
     )
@@ -450,7 +490,9 @@ async def reset_all(request: Request, manager: GridManager = Depends(get_manager
 
 @router.post("/grid/swap-names/")
 async def swap_names(
-    request:Request, swap_name:SwapNameRequest, manager: GridManager = Depends(get_manager)
+    request: Request,
+    swap_name: SwapNameRequest,
+    manager: GridManager = Depends(get_manager),
 ):
     target_grid = swap_name.grid_name
     names = swap_name.names
