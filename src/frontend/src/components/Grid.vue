@@ -117,8 +117,8 @@ const isCompressed = computed(() => {
   return colDefs.value.some(col => col.children && col.children.length > 0);
 });
 const gridHeight = computed(() => {
-    const baseHeight = 63 + (isCompressed.value ? 30 : 0);
-    return baseHeight + 31.5 * Math.max(rowData.value.length - 1, 0);
+    const baseHeight = 62 + (isCompressed.value ? 30 : 0);
+    return baseHeight + 30 * Math.max(rowData.value.length - 1, 0);
 });
 
 async function handleCellClick(params) {

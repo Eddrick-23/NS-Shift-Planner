@@ -7,16 +7,64 @@
         position="left" 
         class="custom-drawer !w-100 p-0">
         <HourGrid ref="hourGrid" v-if="modelValue"/>
+        <Divider />
+        <p class="flex items-center justify-center mb-2">Swap names</p>
+        <Select
+        v-model="selectedGrid"
+        :options="ALL_GRIDS" 
+        optionLabel="name" 
+        placeholder="Select Grid" 
+        optionValue="code" 
+        :showClear="true" 
+        class="w-full mb-2" />
+        <MultiSelect 
+        v-model="selectedNames"
+        :options="testNames"
+        :disabled="!selectedGrid"
+        placeholder="Select 2 Names"
+        :show-clear="true"
+        class="w-full mb-2"
+        />
+        <div class="flex w-full">
+          <Button 
+          icon="pi pi-arrow-right-arrow-left" 
+          class="flex-1"
+          :disabled="!(selectedGrid && selectedNames?.length >= 2)"
+          />
+        </div>
     </Drawer>
 </template> 
 
 <script setup>
 import {ref} from 'vue';
 import Drawer from 'primevue/drawer';
+import Divider from 'primevue/divider';
+import Select from 'primevue/select';
+import MultiSelect from 'primevue/multiselect';
 import HourGrid from '../components/HourGrid.vue';
 const modelValue = defineModel();
 
+defineProps({
+  gridMap :{
+    type:Object,
+    required:true
+  }
+});
+
 const hourGrid = ref(null);
+const selectedGrid = ref(null);
+const selectedNames = ref(null);
+
+const testNames = ["test1","test2"];
+const ALL_GRIDS = ref([
+  {name:'DAY1:MCC',code:'DAY1:MCC'},
+  {name:'DAY1:HCC1',code:'DAY1:HCC1'},
+  {name:'DAY1:HCC2',code:'DAY1:HCC2'},
+  {name:'DAY2:MCC',code:'DAY2:MCC'},
+  {name:'DAY2:HCC1',code:'DAY2:HCC1'},
+  {name:'DAY2:HCC2',code:'DAY2:HCC2'},
+  {name:'NIGHT DUTY', code:'DAY3:MCC'},
+]);
 
 //expose to parent
 defineExpose({
