@@ -30,8 +30,20 @@
             :maxFileSize="1000000"
             :with-credentials="true"
             >
-                <template #empty>
-                    <span>Drag and drop files to here to upload.</span>
+                <template #header="{ chooseCallback, uploadCallback, clearCallback, files }">
+                    <div class="flex items-center justify-center flex-1 gap-4">
+                        <div class="flex gap-2">
+                            <Button @click="chooseCallback()" icon="pi pi-images" rounded outlined severity="secondary"></Button>
+                            <Button @click="uploadCallback" icon="pi pi-cloud-upload" rounded outlined severity="success" :disabled="!files || files.length === 0"></Button>
+                            <Button @click="clearCallback()" icon="pi pi-times" rounded outlined severity="danger" :disabled="!files || files.length === 0"></Button>
+                        </div>
+                    </div>
+                </template>
+                <template #content>
+                    <div class="flex flex-col items-center justify-center">
+                        <p>Drag and drop files to here to upload.</p>
+                        <p style="color:red">This action is irreversible!</p>
+                    </div>
                 </template>
             </FileUpload>
         </div>

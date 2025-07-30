@@ -5,7 +5,7 @@
         :modal="false" 
         :dismissable="false"
         position="left" 
-        class="!w-100 p-0 custom-drawer">
+        class="custom-drawer !w-100 p-0">
         <HourGrid ref="hourGrid" v-if="modelValue"/>
     </Drawer>
 </template> 
@@ -29,5 +29,8 @@ defineExpose({
 :deep(.p-drawer-left) {
   width: 16rem !important;
   max-width: 16rem !important;
+}
+.custom-drawer {
+  --p-drawer-background : #f5f5f5;
 }
 </style>

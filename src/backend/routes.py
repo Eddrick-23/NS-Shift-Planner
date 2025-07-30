@@ -359,12 +359,11 @@ async def allocate_shift(
         allocation_size = "0.75"
 
     # for time blocks ending in :00, and allocation_size "1"
-    # both half allocated/ empty -> fully allocate/deallocate
-    # exactly one half allocated -> 0.25
-    # both allocated but different value -> 0.25
+        # check if second half allocated -> 0.25
 
     # for time blocks ending in :00 and allocation_size "0.75"
-    # if second half allocated -> 0.25
+    # if one half allocated -> 0.25
+
     if time_block[-2:] == "00":
         first_half_allocated = grid_handler.is_shift_allocated(time_block, name)
         second_half_allocated = grid_handler.is_shift_allocated(
@@ -386,7 +385,8 @@ async def allocate_shift(
                     if first_location != second_location:
                         allocation_size = "0.25"
             case "0.75":
-                if second_half_allocated:
+                #only one half allocated
+                if first_half_allocated != second_half_allocated:
                     allocation_size = "0.25"
     if allocation_size == "1":
         grid_handler.allocate_shift(location, time_block, name)

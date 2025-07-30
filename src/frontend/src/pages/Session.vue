@@ -88,7 +88,7 @@
           :selectedShiftSize="selectedShiftSize"
           @shift-allocated="handleGridClick"
           />
-          <Dock />
+            <Dock />
         </div> 
       </div>
     </div>
@@ -226,10 +226,15 @@ onMounted(() => {
 
 <style>
 .control-panel-divider{
-  --p-divider-border-color:#0a0100 
+  --p-divider-border-color:#0a0100; 
+  --p-divider-content-background: #f5f5f5;
 }
 .sidebar-button {
 --p-button-border-radius: 0 9999px 9999px 0;
 
+}
+
+.p-dock-list-container {
+  margin-bottom: 10px;
 }
 </style>

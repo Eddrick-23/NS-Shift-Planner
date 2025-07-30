@@ -33,7 +33,7 @@
 <script setup>
 import { onMounted, ref} from 'vue';
 import { AgGridVue } from 'ag-grid-vue3';
-import {themeQuartz} from 'ag-grid-community'; 
+import {themeQuartz, colorSchemeLightCold} from 'ag-grid-community'; 
 import { useToast } from 'primevue/usetoast';
 import axios from 'axios';
 import endpoints from "../api/api.js";
@@ -43,12 +43,12 @@ const myTheme = themeQuartz.withParams({
     headerRowBorder: {style:'solid',width:"1px"},
     rowBorder: { style: 'solid',width:"1.5px"},
     columnBorder: { style: 'solid',width:"1.5px"}, 
-});
+
+}).withPart(colorSchemeLightCold);
 
 
 const toast = useToast(); // <Toast /> already added on main page
 const emit = defineEmits(['shift-allocated']);
-const rowHeight = 35;
 const props = defineProps({
     day: {
         type:Number,

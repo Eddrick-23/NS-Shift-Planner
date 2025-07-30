@@ -18,7 +18,7 @@
 <script setup>
 import { onMounted, ref} from 'vue';
 import { AgGridVue } from 'ag-grid-vue3';
-import {themeQuartz} from 'ag-grid-community'; 
+import {themeQuartz, colorSchemeLightCold} from 'ag-grid-community'; 
 import axios from 'axios';
 import endpoints from "../api/api.js";
 
@@ -29,7 +29,7 @@ const myTheme = themeQuartz.withParams({
     columnBorder: { style: 'solid',width:"1.5px"}, 
     fontSize:12,
     headerFontSize:10
-});
+}).withPart(colorSchemeLightCold);
 
 axios.defaults.withCredentials = true;
 const API_BASE_URL = import.meta.env.VITE_BACKEND_DOMAIN;
