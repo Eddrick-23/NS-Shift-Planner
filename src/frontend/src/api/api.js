@@ -8,8 +8,8 @@ const endpoints = {
     hours:"/hours/", //GET
     upload:"/upload/", //POST
     download:"/download/", //POST
-    resetAll:"/reset-all/" //DELETE
-
+    resetAll:"/reset-all/", //DELETE
+    compress:"/grid/compressed/", //POST
 }
 
 export default endpoints;

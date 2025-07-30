@@ -252,7 +252,7 @@ async def get_grid_compressed(
     aggrid_format_compressed = handler.df_to_aggrid_compressed(formatted_df)
 
     return JSONResponse(
-        status_code=status.HTTP_200_OK, content=aggrid_format_compressed
+        status_code=status.HTTP_200_OK, content={"data":aggrid_format_compressed}
     )
 
 
@@ -363,6 +363,9 @@ async def allocate_shift(
 
     # for time blocks ending in :00 and allocation_size "0.75"
     # if one half allocated -> 0.25
+
+    #full allocate -> as usual
+    # for 0.25/0.75 -> .25 default to left half , .75 default to right half
 
     if time_block[-2:] == "00":
         first_half_allocated = grid_handler.is_shift_allocated(time_block, name)

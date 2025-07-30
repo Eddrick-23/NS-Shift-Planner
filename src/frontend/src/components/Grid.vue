@@ -20,7 +20,7 @@
             class="customGrid"
             :theme="myTheme"
             style="width: 100%"
-            :style="{height:63 + 31.5*(Math.max(rowData.length-1,0)) + 'px'}"
+            :style="{height: gridHeight + 'px'}"
             :row-height="30"
             :header-height="30"
             :rowData="rowData"
@@ -31,7 +31,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref} from 'vue';
+import { onMounted, ref, computed} from 'vue';
 import { AgGridVue } from 'ag-grid-vue3';
 import {themeQuartz, colorSchemeLightCold} from 'ag-grid-community'; 
 import { useToast } from 'primevue/usetoast';
@@ -68,6 +68,7 @@ const props = defineProps({
     }
 });
 
+
 axios.defaults.withCredentials = true;
 const API_BASE_URL = import.meta.env.VITE_BACKEND_DOMAIN;
 const GRID_NAME = `DAY${props.day}:${props.location}` ;
@@ -76,10 +77,11 @@ const FETCH_GRID_DATA_PAYLOAD = {
     location:props.location
 };
 
-const fetchGridDataSuccessful = ref(true); // need to add a fetchGridData failed screen
-async function fetchGridData() {
+const fetchGridDataSuccessful = ref(true);
+async function fetchGridData(url = '') { //pass in optional url for compressed grid format
     try {
-        const response = await axios.post(API_BASE_URL+endpoints.grid,FETCH_GRID_DATA_PAYLOAD);
+        const finalUrl = url === '' ? API_BASE_URL + endpoints.grid : url;
+        const response = await axios.post(finalUrl,FETCH_GRID_DATA_PAYLOAD);
         const columnDefs = response.data.data.columnDefs;
         const rowData = response.data.data.rowData;
         updateGrid(columnDefs,rowData);
@@ -111,6 +113,13 @@ function addCellClassRules(colDefs) {
     }
   });
 }
+const isCompressed = computed(() => {
+  return colDefs.value.some(col => col.children && col.children.length > 0);
+});
+const gridHeight = computed(() => {
+    const baseHeight = 63 + (isCompressed.value ? 30 : 0);
+    return baseHeight + 31.5 * Math.max(rowData.value.length - 1, 0);
+});
 
 async function handleCellClick(params) {
     const ALLOCATE_SHIFT_PAYLOAD = {
@@ -132,10 +141,6 @@ async function handleCellClick(params) {
 };
 
 async function addName(name) {
-    /**
-     * @param {string} name - name of person to add
-     */
-    // Add name to grid if name does not exist
     try {
         const ADD_NAME_PAYLOAD = {
             "grid_name": GRID_NAME,

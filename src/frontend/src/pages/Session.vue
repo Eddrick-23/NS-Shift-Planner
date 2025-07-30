@@ -88,7 +88,7 @@
           :selectedShiftSize="selectedShiftSize"
           @shift-allocated="handleGridClick"
           />
-            <Dock />
+            <Dock @compress-night-duty-grid="compressNightDutyGrid"/>
         </div> 
       </div>
     </div>
@@ -137,6 +137,17 @@ const drawerVisible = ref(true);
 const leftDrawer = ref(null);
 
 const gridMap = new Map(); //store grid refs in Map
+
+async function compressNightDutyGrid(compressIdx) {
+  const grid = gridMap.get("DAY3:MCC");
+  console.log("compress ND grid: ", compressIdx);
+  //compressIdx = 1 -> compress, 0 -> original format
+  if (compressIdx === 1) {
+    await grid?.value?.fetchGridData(API_BASE_URL + endpoints.compress);
+  }else{
+    await grid?.value?.fetchGridData();
+  }
+}
 
 async function handleGridClick(day) {
   //call back to update matching day grids when shift-allocated
