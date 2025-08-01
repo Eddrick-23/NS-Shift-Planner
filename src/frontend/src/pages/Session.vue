@@ -6,8 +6,8 @@
     
     <div v-else-if="!loading" class="p-4 flex">
       <Toast/>
-      <LeftDrawer ref="leftDrawer" v-model="drawerVisible"/>
-      <div class="relative min-h-screen transition-all duration-300 w-full" :class="{ 'ml-100': drawerVisible }">
+      <LeftDrawer ref="leftDrawer" v-model="drawerVisible" :grid-map="gridMap"/>
+      <div class="relative min-h-screen transition-all duration-300 w-full" :class="{ 'ml-110': drawerVisible }">
         <div class="grid grid-flow-col grid-cols-8 grid-rows-1 gap-2 ml-4 mr-4">
           <div class="col-span-2 flex flex-col items-center justify-center">
             <Select v-model="selectedGrid" :options="ALL_GRIDS" optionLabel="name" placeholder="Select Grid" optionValue="code" :showClear="true" class="w-full" />
@@ -140,26 +140,27 @@ const gridMap = new Map(); //store grid refs in Map
 
 async function compressNightDutyGrid(compressIdx) {
   const grid = gridMap.get("DAY3:MCC");
-  console.log("compress ND grid: ", compressIdx);
   //compressIdx = 1 -> compress, 0 -> original format
   if (compressIdx === 1) {
     await grid?.value?.fetchGridData(API_BASE_URL + endpoints.compress);
+    grid.value.disableCellClicks = true;
   }else{
     await grid?.value?.fetchGridData();
+    grid.value.disableCellClicks = false;
   }
 }
 
 async function handleGridClick(day) {
   //call back to update matching day grids when shift-allocated
   const dayStr = day.toString();
-  let promises = []; //store all function callbacks
+  let promises = [];
   for (const[key,gridRef] of gridMap) {
     if (key.includes(dayStr)) {
       promises.push(gridRef?.value?.fetchGridData());
+      promises.push(updateHourGrid());
     } 
   } 
-  await Promise.all(promises);
-  await updateHourGrid();
+  await Promise.all(promises); //fetch all at once
 }
 
 const handleAddName = async () => {

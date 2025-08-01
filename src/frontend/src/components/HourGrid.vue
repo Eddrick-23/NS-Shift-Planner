@@ -4,6 +4,7 @@
     </div>
     <div v-else class="w-full">
         <ag-grid-vue
+            class="hour-grid"
             dom-layout="autoHeight"
             :row-height="30"
             :header-height="30"
@@ -23,6 +24,7 @@ import axios from 'axios';
 import endpoints from "../api/api.js";
 
 const myTheme = themeQuartz.withParams({
+    fontFamily:'sans-serif',
     headerColumnBorder:{style:'solid',width:"1px"},
     headerRowBorder: {style:'solid',width:"1px"},
     rowBorder: { style: 'solid',width:"1.5px"},
@@ -78,3 +80,10 @@ onMounted(async () => {
 
 defineExpose({fetchHourData});
 </script>
+
+<style>
+/* set min height when using domLayout:autoHeight */
+.hour-grid .ag-center-cols-viewport {
+    min-height: 8vh !important;
+}
+</style>

@@ -10,6 +10,7 @@ const endpoints = {
     download:"/download/", //POST
     resetAll:"/reset-all/", //DELETE
     compress:"/grid/compressed/", //POST
+    swapNames:"/grid/swap-names/", //POST
 }
 
 export default endpoints;

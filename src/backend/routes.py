@@ -171,6 +171,7 @@ async def login(
             httponly=True,
             secure=True,
             samesite="lax",
+            max_age=60*60*config.DATA_EXPIRY_LENGTH*24, # match how long data is saved in db
             domain=config.FRONT_END_DOMAIN,
         )
     else:
@@ -180,6 +181,7 @@ async def login(
             httponly=True,
             secure=False,
             samesite="lax",
+            max_age=60*60*config.DATA_EXPIRY_LENGTH*24, # match how long data is saved in db
         )
     return response
 

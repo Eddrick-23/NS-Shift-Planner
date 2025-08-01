@@ -22,8 +22,8 @@
                 <template #header="{ chooseCallback, uploadCallback, clearCallback, files }">
                     <div class="flex items-center justify-center flex-1 gap-4">
                         <div class="flex gap-2">
-                            <Button @click="chooseCallback()" icon="pi pi-images" rounded outlined severity="secondary"></Button>
-                            <Button @click="uploadCallback" icon="pi pi-cloud-upload" rounded outlined severity="success" :disabled="!files || files.length === 0"></Button>
+                            <Button @click="chooseCallback()" icon="pi pi-file-arrow-up" rounded outlined severity="secondary":disabled="files.length === 1"></Button>
+                            <Button @click="uploadCallback" icon="pi pi-cloud-upload" rounded outlined severity="success" :disabled="!files || files.length === 0" class="custom-upload-button"></Button>
                             <Button @click="clearCallback()" icon="pi pi-times" rounded outlined severity="danger" :disabled="!files || files.length === 0"></Button>
                         </div>
                     </div>
@@ -94,3 +94,11 @@ async function handleResetAll() {
     }
 }
 </script>
+
+<style>
+.custom-upload-button:not(:disabled) {
+    border-width: 2px;
+    border-color: #28a745; /* green border, adjust as needed */
+    background-color: #e6ffe6; /* light green background */
+}
+</style>

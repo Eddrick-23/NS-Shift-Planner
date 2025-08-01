@@ -7,7 +7,7 @@
             class="customGrid"
             :theme="myTheme"
             style="width: 100%"
-            :style="{height:63 + 31.5*(Math.max(rowData.length-1,0)) + 'px'}"
+            dom-layout="autoHeight"
             :row-height="30"
             :header-height="30"
             :rowData="rowData"
@@ -20,7 +20,7 @@
             class="customGrid"
             :theme="myTheme"
             style="width: 100%"
-            :style="{height: gridHeight + 'px'}"
+            dom-layout="autoHeight"
             :row-height="30"
             :header-height="30"
             :rowData="rowData"
@@ -31,7 +31,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed} from 'vue';
+import { onMounted, ref, computed, registerRuntimeCompiler} from 'vue';
 import { AgGridVue } from 'ag-grid-vue3';
 import {themeQuartz, colorSchemeLightCold} from 'ag-grid-community'; 
 import { useToast } from 'primevue/usetoast';
@@ -39,6 +39,7 @@ import axios from 'axios';
 import endpoints from "../api/api.js";
 
 const myTheme = themeQuartz.withParams({
+    fontFamily: 'sans-serif',
     headerColumnBorder:{style:'solid',width:"1px"},
     headerRowBorder: {style:'solid',width:"1px"},
     rowBorder: { style: 'solid',width:"1.5px"},
@@ -76,6 +77,7 @@ const FETCH_GRID_DATA_PAYLOAD = {
     day: props.day,
     location:props.location
 };
+const disableCellClicks = ref(false);
 
 const fetchGridDataSuccessful = ref(true);
 async function fetchGridData(url = '') { //pass in optional url for compressed grid format
@@ -113,15 +115,12 @@ function addCellClassRules(colDefs) {
     }
   });
 }
-const isCompressed = computed(() => {
-  return colDefs.value.some(col => col.children && col.children.length > 0);
-});
-const gridHeight = computed(() => {
-    const baseHeight = 62 + (isCompressed.value ? 30 : 0);
-    return baseHeight + 30 * Math.max(rowData.value.length - 1, 0);
-});
 
 async function handleCellClick(params) {
+    if (disableCellClicks.value === true) {
+        toast.add({severity:'info', summary: 'Clicks disabled',life:'4000'});
+        return;
+    }
     const ALLOCATE_SHIFT_PAYLOAD = {
         "grid_name" : GRID_NAME,
         "name": params.data[GRID_NAME],
@@ -129,13 +128,12 @@ async function handleCellClick(params) {
         "time_block": params.column.getColId(),
         "allocation_size": props.selectedShiftSize
     };
-    console.log(ALLOCATE_SHIFT_PAYLOAD);
     try {
         const response = await axios.post(API_BASE_URL+endpoints.allocateShift,ALLOCATE_SHIFT_PAYLOAD);
         await fetchGridData();
         emit('shift-allocated',props.day);
     } catch(error) {
-        toast.add({severity:"error",summary: 'Add Name failed',detail:"Internal Server Error", life:"4000"}); 
+        toast.add({severity:"error",summary: 'Allocate Shift failed',detail:"Internal Server Error", life:"4000"}); 
         console.log(`Grid for ${props.day},${props.location}:`,error);
     }
 };
@@ -165,7 +163,6 @@ async function removeName(name) {
         const response = await axios.delete(API_BASE_URL + endpoints.removeName, {data:REMOVE_NAME_PAYLOAD});
         await fetchGridData();
         toast.add({severity:'info', summary:'Remove Name', detail: response.data.detail, life:"4000"});
-        console.log(response.data);
     } catch(error) {
         if (error.response.status === 404) {
             toast.add({severity:"warn", summary:'Remove Name Failed', detail:"Name does not exist", life:"4000"});
@@ -176,13 +173,50 @@ async function removeName(name) {
     }
 }
 
+async function swapNames(names) {
+    if (names.length !== 2) {
+        console.log("swapNames method expecting input array of containing 2 strings");
+        return;
+    }
+    const SWAP_NAMES_PAYLOAD = {
+        "names" : names,
+        "grid_name": GRID_NAME
+    }
+    try {
+        const response = await axios.post(API_BASE_URL+endpoints.swapNames,SWAP_NAMES_PAYLOAD);
+        await fetchGridData();
+        toast.add({severity:'info', summary:'Swap Name', detail: `swapped ${names}`, life:"4000"});
+    } catch(error) {
+        toast.add({severity:"error", summary:'Swap Name Failed', detail:"Internal Server Eror", life:"4000"});
+        console.log(`Grid for ${props.day}, ${props.location}:`, error);
+    }
+}
+
+const allNames = computed(() => {
+    let names = [];
+    for (const row of rowData.value) {
+        names.push(row[GRID_NAME]);
+    }
+    return names;
+})
+
 onMounted(async () => {
     await fetchGridData();
 })
 const rowData = ref([]);
 const colDefs = ref([]);
 
-defineExpose({ addName, removeName, fetchGridData});
+
+defineExpose({ 
+    addName, 
+    removeName, 
+    fetchGridData,
+    swapNames,
+    disableCellClicks,
+    get allNames() {
+        return allNames.value;
+    }
+});
 
 </script>
 
@@ -221,4 +255,8 @@ defineExpose({ addName, removeName, fetchGridData});
   color: black;
 }
 
+/* using domLayout:autoHeight this sets the min height when there are no rows */
+.customGrid .ag-center-cols-viewport {
+    min-height: 3vh !important;
+}
 </style>
