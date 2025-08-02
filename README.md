@@ -53,7 +53,6 @@ uv pip install -r uv.lock
 ```
 GOOGLE_APPLICATION_CREDENTIALS={serviceAccountKey.json}
 FRONTEND_DOMAIN=https://frontend_domain (for deployment)
-BACKEND_DOMAIN=https://backend_domain (for deployment)
 BACKEND_PORT=8000
 FRONTEND_PORT=8080
 LRU_CACHE_SIZE=50
@@ -85,7 +84,7 @@ VITE_VERSION=current-app-version
 VITE_ENVIRONMENT="DEV"
 VITE_DATA_SAVED_DURATION="1"
 
-VITE_BACKEND_DOMAIN=http://localhost:8000
+VITE_BACKEND_DOMAIN=http://localhost:8000 (change for prod)
 VITE_SOURCE_CODE_URL=https://github.com/Eddrick-23/NS-Shift-Planner
 ```
 

@@ -16,6 +16,7 @@ from src.backend.internal.lru_cache import CustomLRUCache
 from src.backend.internal.thread_safe_set import ThreadSafeSet
 from src.backend.routes import router
 
+
 CRED_DICT = json.loads(config.GOOGLE_APPLICATION_CREDENTIALS)
 CRED = credentials.Certificate(CRED_DICT)
 firebase_admin.initialize_app(CRED)
@@ -171,7 +172,5 @@ class APIKEYMiddleware(BaseHTTPMiddleware):
         if api_key != config.API_KEY:
             return JSONResponse(status_code=status.HTTP_403_FORBIDDEN, content={"detail": "Invalid or missing API Key"})
         return await call_next(request)
+
 app.add_middleware(APIKEYMiddleware)
-
-
-

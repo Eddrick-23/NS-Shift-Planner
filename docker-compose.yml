@@ -18,7 +18,5 @@ services:
     container_name: vue
     ports:
       - "8080:80"
-    env_file:
-      - src/frontend/.env.local
     depends_on:
       - fastapi

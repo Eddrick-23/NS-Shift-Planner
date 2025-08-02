@@ -91,7 +91,19 @@ async function fetchGridData(url = '') { //pass in optional url for compressed g
         fetchGridDataSuccessful.value=true;
     }catch(error) {
         fetchGridDataSuccessful.value=false;
-        console.log(`'Grid for ${props.day},${props.location}:'`,error);
+        if (error.response) {
+            console.error(`Grid fetch failed for ${props.day}, ${props.location}:`);
+            console.error('Status:', error.response.status);
+            console.error('Status Text:', error.response.statusText);
+            console.error('Response Data:', error.response.data);
+            console.error('Response Headers:', error.response.headers);
+        } else if (error.request) {
+            console.error(`Network error for ${props.day}, ${props.location}:`, error.message);
+            console.error('Request:', error.request);
+        } else {
+            console.error(`Grid fetch error for ${props.day}, ${props.location}:`, error.message);
+        } 
+        console.error(`'Grid for ${props.day},${props.location}:'`,error);
     }
 }
 

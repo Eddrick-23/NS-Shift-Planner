@@ -169,12 +169,11 @@ async def login(
             value=session_id,
             httponly=True,
             secure=True,
-            samesite="lax",
+            samesite="none", # not "lax"
             max_age=60
             * 60
             * config.DATA_EXPIRY_LENGTH
             * 24,  # match how long data is saved in db
-            domain=config.FRONT_END_DOMAIN,
         )
     else:
         response.set_cookie(
@@ -212,7 +211,6 @@ async def session_exists(request: Request, session_id: str):
 
 @router.post("/grid/")  # get all grid data for a specified day
 async def get_grid(
-    request: Request,
     fetch_grid_req: FetchGridRequest,
     manager: GridManager = Depends(get_manager),
 ):
