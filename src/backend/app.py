@@ -13,7 +13,9 @@ from firebase_admin import credentials, firestore
 from google.cloud.firestore import Client
 from src.backend.config import config
 from src.backend.internal.lru_cache import CustomLRUCache
+from src.backend.internal.thread_safe_set import ThreadSafeSet
 from src.backend.routes import router
+
 
 CRED_DICT = json.loads(config.GOOGLE_APPLICATION_CREDENTIALS)
 CRED = credentials.Certificate(CRED_DICT)
@@ -23,7 +25,10 @@ DB_COLLECTION_NAME = config.DB_COLLECTION_NAME
 # Initialize Firestore client
 db: Client = firestore.client()
 cache = CustomLRUCache(config.LRU_CACHE_SIZE, db)
-logging.basicConfig(level=logging.DEBUG, force=True)
+if config.ENVIRONMENT == "DEV":
+    logging.basicConfig(level=logging.DEBUG, force=True)
+elif config.ENVIRONMENT == "PROD":
+    logging.basicConfig(level=logging.INFO, force=True)
 
 # lifespan function to manage background tasks
 async def prune_db(db: Client, interval_hours: int):
@@ -63,11 +68,11 @@ async def prune_db(db: Client, interval_hours: int):
         await asyncio.sleep(interval_hours * 3600)
 
 
-def load_existing_ids(db: Client):
+def load_existing_ids(db: Client) -> ThreadSafeSet:
     projects_ref = db.collection(DB_COLLECTION_NAME)
     docs = projects_ref.stream()
 
-    all_ids = set()
+    all_ids = ThreadSafeSet()
     for doc in docs:
         file_name = doc.id
         session_id = file_name.partition(":")[2]
@@ -131,10 +136,14 @@ async def lifespan(app: FastAPI):
         await scan_cache(cache, config.SCAN_CACHE_INTERVAL, run_once=True)
     logging.info("Shutdown Complete")
 
-app = FastAPI(lifespan=lifespan)
-app.include_router(router)
-app.state.manager_cache = cache
-app.state.db = db
+def create_app(use_lifespan:bool=True):
+    app = FastAPI(lifespan=lifespan if use_lifespan else None)
+    app.include_router(router)
+    app.state.manager_cache = cache
+    app.state.db = db
+    return app
+
+app = create_app()
 
 # CORS configuration
 origins = ["http://localhost:8080",
@@ -149,21 +158,19 @@ app.add_middleware(
 )
 
 
-# Middleware for API Key authentication
-EXCLUDED_PATHS = ["/health", "/health/"]
+# Middleware for API Key authentication for protected endpoints
+INCLUDED_PATHS = ["/cached_items","/cached_items/","/session_exists","/session_exists/"]
 API_KEY_NAME = "x-api-key"
 
 class APIKEYMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         #skip excluded paths
-        if any(request.url.path.startswith(path) for path in EXCLUDED_PATHS):
+        if not any(request.url.path.startswith(path) for path in INCLUDED_PATHS):
             return await call_next(request)
-
+        
         api_key = request.headers.get(API_KEY_NAME)
         if api_key != config.API_KEY:
             return JSONResponse(status_code=status.HTTP_403_FORBIDDEN, content={"detail": "Invalid or missing API Key"})
         return await call_next(request)
+
 app.add_middleware(APIKEYMiddleware)
-
-
-

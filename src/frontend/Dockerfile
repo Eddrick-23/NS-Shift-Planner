@@ -1,33 +1,14 @@
-# Build stage - uses uv for dependency installation
-FROM python:3.13-slim AS builder
-
-# Copy uv binary
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
+# build stage
+FROM node:lts-alpine AS build-stage
 WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build:dev
 
-# Copy dependency files
-COPY src/frontend/pyproject.toml src/frontend/uv.lock /app/
-
-# Install dependencies using uv
-RUN uv sync --frozen --no-dev
-
-# distroless image for runtime
-FROM nvcr.io/nvidia/distroless/python:3.13-v3.0.11 AS runtime-nvidia
-
-# Set working directory
-WORKDIR /app
-
-# Copy the virtual environment from builder stage
-COPY --from=builder /app/.venv /app/.venv
-
-# Copy application code
-COPY src/frontend ./src/frontend
-
-# Add the virtual environment to PATH
-ENV PATH="/app/.venv/bin:$PATH"
-
-# Expose port
-EXPOSE 8080
-
-CMD ["python", "-m", "src.frontend.main"]
+# production stage
+FROM nginx:stable-alpine AS production-stage
+COPY --from=build-stage /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
     
+## [2.0.0-beta]
 
+### Changed
+- ported frontend over to Vue-Js
+- Replace sessionId management to http cookies stored in browser
 ---
 
 ## [1.0.1-beta] - 2025-07-07
