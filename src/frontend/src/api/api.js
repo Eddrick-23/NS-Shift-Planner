@@ -4,7 +4,7 @@ const endpoints = {
     grid :"/grid/", //POST
     addName:"/grid/add/", //POST
     removeName:"/grid/remove/", //DELETE
-    allocateShift:"/grid/allocate", //POST
+    allocateShift:"/grid/allocate/", //POST
     hours:"/hours/", //GET
     upload:"/upload/", //POST
     download:"/download/", //POST
