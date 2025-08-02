@@ -11,16 +11,14 @@ services:
     volumes:
       - ./secrets/serviceAccountKey.json:/app/secrets/serviceAccountKey.json:ro
     
-  nicegui:
+  vue:
     build:
-      context: .
-      dockerfile: src/frontend/Dockerfile
-    container_name: nicegui
+      context: src/frontend
+      dockerfile: Dockerfile
+    container_name: vue
     ports:
-      - "8080:8080"
+      - "8080:80"
     env_file:
-      - .env
-    environment:
-      - HOST_NAME=planner-api
+      - src/frontend/.env.local
     depends_on:
       - fastapi
