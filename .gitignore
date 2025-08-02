@@ -1,0 +1,8 @@
+.pytest_cache
+secrets
+**/__pycache__/
+*.pyc
+.env
+project-notes.md
+.DS_Store
+src/.DS_Store

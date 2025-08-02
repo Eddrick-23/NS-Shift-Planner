@@ -1,0 +1,21 @@
+# Ignore the entire frontend folder
+src/frontend/
+
+# Ignore Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore Git metadata
+.git
+.gitignore
+
+# Ignore OS/editor files
+.DS_Store
+.vscode/
+.idea/
+
+# Ignore virtual environments
+.venv/
+env/
+venv/
