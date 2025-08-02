@@ -25,7 +25,7 @@ class GridHandler:
         self.names = set()  # names in this days data base
         self.location = location
         self.day = day
-        self.identifier = f"{self.day},{self.location} GridHanlder"
+        self.identifier = f"{self.day},{self.location} GridHandler"
         self.logger = logging.getLogger(__name__)
         self.hours = {}  # stores hour data in name:hour format
         self.load_data()

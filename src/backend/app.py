@@ -24,7 +24,10 @@ DB_COLLECTION_NAME = config.DB_COLLECTION_NAME
 # Initialize Firestore client
 db: Client = firestore.client()
 cache = CustomLRUCache(config.LRU_CACHE_SIZE, db)
-logging.basicConfig(level=logging.DEBUG, force=True)
+if config.ENVIRONMENT == "DEV":
+    logging.basicConfig(level=logging.DEBUG, force=True)
+elif config.ENVIRONMENT == "PROD":
+    logging.basicConfig(level=logging.INFO, force=True)
 
 # lifespan function to manage background tasks
 async def prune_db(db: Client, interval_hours: int):
@@ -132,10 +135,14 @@ async def lifespan(app: FastAPI):
         await scan_cache(cache, config.SCAN_CACHE_INTERVAL, run_once=True)
     logging.info("Shutdown Complete")
 
-app = FastAPI(lifespan=lifespan)
-app.include_router(router)
-app.state.manager_cache = cache
-app.state.db = db
+def create_app(use_lifespan:bool=True):
+    app = FastAPI(lifespan=lifespan if use_lifespan else None)
+    app.include_router(router)
+    app.state.manager_cache = cache
+    app.state.db = db
+    return app
+
+app = create_app()
 
 # CORS configuration
 origins = ["http://localhost:8080",

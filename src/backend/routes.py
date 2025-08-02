@@ -67,7 +67,6 @@ def valid_id(
 def get_manager(
     request: Request, session_id=Cookie(..., alias="session_id")
 ) -> GridManager:
-    logging.debug(session_id)
     cache: CustomLRUCache = request.app.state.manager_cache
     all_ids: set = request.app.state.all_ids
 
@@ -79,11 +78,11 @@ def get_manager(
         )
 
     if location == "cache":
-        logging.debug("Cache hit, returning cached manager")
+        logging.debug("Cache hit, returning cached manager: %s", session_id)
         manager = cache[session_id]
     if location == "db":
         manager = restore_from_database(request.app.state.db, session_id)
-        logging.debug("Restored from database")
+        logging.info("Restored from database: %s", session_id)
         cache[session_id] = manager  # store in cache
     manager.requires_sync = True
     return manager
@@ -171,7 +170,10 @@ async def login(
             httponly=True,
             secure=True,
             samesite="lax",
-            max_age=60*60*config.DATA_EXPIRY_LENGTH*24, # match how long data is saved in db
+            max_age=60
+            * 60
+            * config.DATA_EXPIRY_LENGTH
+            * 24,  # match how long data is saved in db
             domain=config.FRONT_END_DOMAIN,
         )
     else:
@@ -181,7 +183,10 @@ async def login(
             httponly=True,
             secure=False,
             samesite="lax",
-            max_age=60*60*config.DATA_EXPIRY_LENGTH*24, # match how long data is saved in db
+            max_age=60
+            * 60
+            * config.DATA_EXPIRY_LENGTH
+            * 24,  # match how long data is saved in db
         )
     return response
 
@@ -254,7 +259,7 @@ async def get_grid_compressed(
     aggrid_format_compressed = handler.df_to_aggrid_compressed(formatted_df)
 
     return JSONResponse(
-        status_code=status.HTTP_200_OK, content={"data":aggrid_format_compressed}
+        status_code=status.HTTP_200_OK, content={"data": aggrid_format_compressed}
     )
 
 
@@ -335,6 +340,45 @@ async def remove_name(
     )
 
 
+def __resolve_allocation_size(
+    day: int, time_block: str, allocation_size: str, manager: GridManager
+) -> str:
+    """
+    Helper function for allocate shift to resolve allocation size
+
+    Args:
+        day(int): The day of the target grid
+        time_block(str): Time block for allocation
+        allocation_size(str): The current allocation size
+        manager: GridManager instance
+
+    Returns:
+        str: The resolved allocation size
+    """
+
+    if ":30" in time_block:
+        return "0.75"
+
+    # check if other half time block is displayed
+    # if displayed we control allocation to first half only
+    if ":00" in time_block:
+        bit_masks = {}
+        # extract bitmasks
+        for key, handler in manager.all_grids.items():
+            if f"DAY{day}" not in key:
+                continue
+            num = len(bit_masks) + 1
+            bit_masks[f"bit_mask_{num}"] = handler.bit_mask
+
+        # format the keys
+        blocks_to_remove = manager.format_keys(tb.HALF_DAY_BLOCK_MAP[day], **bit_masks)
+
+        other_half = time_block[:-2] + "30"
+        if other_half not in blocks_to_remove:
+            return "0.25"
+    return allocation_size
+
+
 @router.post("/grid/allocate/")
 async def allocate_shift(
     request: Request,
@@ -356,43 +400,11 @@ async def allocate_shift(
     location = allocate_shift_req.location
     time_block = allocate_shift_req.time_block
     allocation_size = allocate_shift_req.allocation_size
-    # force allocation_size "0.75" for :30 time blocks
-    if ":30" in time_block:
-        allocation_size = "0.75"
 
-    # for time blocks ending in :00, and allocation_size "1"
-        # check if second half allocated -> 0.25
+    allocation_size = __resolve_allocation_size(
+        grid_handler.day, time_block, allocation_size, manager
+    ) 
 
-    # for time blocks ending in :00 and allocation_size "0.75"
-    # if one half allocated -> 0.25
-
-    #full allocate -> as usual
-    # for 0.25/0.75 -> .25 default to left half , .75 default to right half
-
-    if time_block[-2:] == "00":
-        first_half_allocated = grid_handler.is_shift_allocated(time_block, name)
-        second_half_allocated = grid_handler.is_shift_allocated(
-            time_block[:-2] + "30", name
-        )
-        match allocation_size:
-            case "1":
-                exactly_one_half_allocated = (
-                    first_half_allocated and not second_half_allocated
-                ) or (not first_half_allocated and second_half_allocated)
-                both_allocated = first_half_allocated and second_half_allocated
-                if exactly_one_half_allocated:
-                    allocation_size = "0.25"
-                elif both_allocated:
-                    first_location = grid_handler.get_shift_location(time_block, name)
-                    second_location = grid_handler.get_shift_location(
-                        time_block[:-2] + "30", name
-                    )
-                    if first_location != second_location:
-                        allocation_size = "0.25"
-            case "0.75":
-                #only one half allocated
-                if first_half_allocated != second_half_allocated:
-                    allocation_size = "0.25"
     if allocation_size == "1":
         grid_handler.allocate_shift(location, time_block, name)
         second_half = time_block[:-2] + "30"
@@ -408,8 +420,13 @@ async def allocate_shift(
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
-            "detail": f"Allocated: {target_grid},{name},{time_block},{allocation_size},{location}"
-        },
+            "detail": "Allocated",
+            "target_grid": target_grid,
+            "name": name,
+            "time_block": time_block,
+            "allocation_size": allocation_size,
+            "location": location
+        } 
     )
 
 
@@ -469,9 +486,7 @@ async def upload_file(
     try:
         zip_bytes = await file.read()
         manager_instance = GridManager.deserialise_from_zip(zip_bytes)
-        request.app.state.manager_cache[session_id] = (
-            manager_instance
-        )
+        request.app.state.manager_cache[session_id] = manager_instance
         return JSONResponse(status_code=status.HTTP_200_OK, content={"detail": "ok"})
     except Exception as e:
         logging.debug(f"{str(e)}")
@@ -484,9 +499,11 @@ async def upload_file(
 
 
 @router.delete("/reset-all/")
-async def reset_all(request: Request,
-                    session_id: str = Cookie(..., alias="session_id"),
-                    manager: GridManager = Depends(get_manager)):
+async def reset_all(
+    request: Request,
+    session_id: str = Cookie(..., alias="session_id"),
+    manager: GridManager = Depends(get_manager),
+):
     request.app.state.manager_cache[session_id] = GridManager()
     return JSONResponse(
         status_code=status.HTTP_200_OK, content={"detail": "data resetted"}
