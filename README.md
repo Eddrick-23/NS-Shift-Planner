@@ -10,7 +10,7 @@
 
 > Ns Planning app (Revamped from https://github.com/Eddrick-23/NS_SHIFT_PLANNER)
 
-Access it here: https://eddrick-23.github.io/NS-Shift-Planner/ 
+Access it here: https://www.app.nsplanner.com
 
 ## What's New (v2.0.0-beta)
 - Ported frontend over to Vue JS

@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from starlette.middleware.base import BaseHTTPMiddleware
-from fastapi import FastAPI, status
+from fastapi import FastAPI, status,Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import firebase_admin
@@ -16,6 +16,8 @@ from src.backend.internal.lru_cache import CustomLRUCache
 from src.backend.internal.thread_safe_set import ThreadSafeSet
 from src.backend.routes import router
 
+from fastapi.exceptions import RequestValidationError
+from starlette.status import HTTP_422_UNPROCESSABLE_ENTITY
 
 CRED_DICT = json.loads(config.GOOGLE_APPLICATION_CREDENTIALS)
 CRED = credentials.Certificate(CRED_DICT)
@@ -172,5 +174,16 @@ class APIKEYMiddleware(BaseHTTPMiddleware):
         if api_key != config.API_KEY:
             return JSONResponse(status_code=status.HTTP_403_FORBIDDEN, content={"detail": "Invalid or missing API Key"})
         return await call_next(request)
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    body = await request.body()
+    logging.info("Validation error on /grid/")
+    logging.info("Request body: %s", body.decode())
+    logging.info("Validation errors: %s", exc.errors())
+    return JSONResponse(
+        status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors()},
+    )
 
 app.add_middleware(APIKEYMiddleware)
