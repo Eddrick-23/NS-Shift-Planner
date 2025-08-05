@@ -50,9 +50,13 @@ class CustomLRUCache(LRUCache):
         with self._lock:
             return super().get(key, default)
 
-    def sync_to_firebase(self, session_id: str, manager: GridManager):
+    def sync_to_firebase(self, session_id: str, manager: GridManager) -> bool:
         """
         Sync GridManager data to firebase
+
+        Args:
+            session_id(str): session id to sync data under
+            manager(str): GridManager instance for this session id
         """
         try:
             zip_bytes = manager.serialise_to_zip()
@@ -77,7 +81,7 @@ class CustomLRUCache(LRUCache):
 
         except Exception as e:
             logging.error(
-                "Failed to sync evicted session %s to Firestore: %s", session_id, e
+                "Failed to sync session %s to Firestore: %s", session_id, e
             )
 
 

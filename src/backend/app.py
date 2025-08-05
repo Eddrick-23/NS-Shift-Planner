@@ -89,6 +89,7 @@ async def scan_cache(cache: CustomLRUCache, interval: int, run_once: bool = Fals
     Args:
         cache: CustomLRUCache class instance
         inverval (int): How often to scan through cache(minutes)
+        run_once (bool): run scan once not periodically (for dev)
     """
     synced_sessions = 0
     while True:
@@ -110,6 +111,7 @@ async def scan_cache(cache: CustomLRUCache, interval: int, run_once: bool = Fals
             synced_sessions,
             time.time() - start_time,
         )
+        synced_sessions = 0 #reset counter after scan
         if run_once:
             break
 
