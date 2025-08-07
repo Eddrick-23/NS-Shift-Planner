@@ -2,15 +2,15 @@
     <div class="flex flex-col gap-2">
         <div>
             <RadioButton v-model="modelValue" inputId="selectedLocation1" name="MCC" value="MCC" variant="filled"/>
-            <label for="ingredient1">MCC</label>
+            <label for="selectedLocation1">MCC</label>
         </div>
         <div>
             <RadioButton v-model="modelValue" inputId="selectedLocation2" name="HCC1" value="HCC1" variant="filled"/>
-            <label for="ingredient2">HCC1</label>
+            <label for="selectedLocation2">HCC1</label>
         </div>
         <div>
             <RadioButton v-model="modelValue" inputId="selectedLocation3" name="HCC2" value="HCC2" variant="filled" />
-            <label for="ingredient3">HCC2</label>
+            <label for="selectedLocation3">HCC2</label>
         </div>
     </div>
 </template>

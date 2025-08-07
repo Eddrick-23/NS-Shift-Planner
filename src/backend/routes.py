@@ -27,7 +27,7 @@ router = APIRouter()
 DB_COLLECTION_NAME = config.DB_COLLECTION_NAME
 
 
-def restore_from_database(db: Client, session_id: str) -> GridManager:
+def restore_from_database(db: Client, session_id: str) -> GridManager | None:
     """
     Restore GridManager Instance using saved data in firestore
 
@@ -36,14 +36,20 @@ def restore_from_database(db: Client, session_id: str) -> GridManager:
         session_id(str): session_id to
 
     Returns:
-        GridManager class instance
+        GridManager class instance, None if unsuccessful
     """
-    doc_ref = db.collection(DB_COLLECTION_NAME).document(f"session_id:{session_id}")
-    doc = doc_ref.get()
-    data = doc.to_dict()
-    decoded_bytes = base64.b64decode(data.get("data"))
-    manager = GridManager.deserialise_from_zip(decoded_bytes)
-    return manager
+    try:
+        doc_ref = db.collection(DB_COLLECTION_NAME).document(f"session_id:{session_id}")
+        doc = doc_ref.get()
+        data = doc.to_dict()
+        decoded_bytes = base64.b64decode(data.get("data"))
+        manager = GridManager.deserialise_from_zip(decoded_bytes)
+        return manager
+    except Exception as e:
+        logging.info(
+            "Failed to restore session:%s from database. Error: %s", session_id, e
+        )
+        return None
 
 
 def valid_id(
@@ -83,6 +89,11 @@ def get_manager(
     if location == "db":
         manager = restore_from_database(request.app.state.db, session_id)
         logging.info("Restored from database: %s", session_id)
+        if manager is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to restore session from database",
+            )
         cache[session_id] = manager  # store in cache
     manager.requires_sync = True
     return manager
@@ -142,17 +153,26 @@ async def login(
 ):
     # handle login requests
     # if there is no session id, issue an id
-    # if there is a session id, authenticate it first before issuing
+    # if there is a session id, authenticate it first, load manager to cache
 
     # issue session id in http header
     id_valid = False
+    location = ""
     if session_id is not None:
-        valid, _ = valid_id(
-            session_id, request.app.state.manager_cache, request.app.state.all_ids
-        )
-        id_valid = valid
+        cache: CustomLRUCache = request.app.state.manager_cache
+        all_ids: set = request.app.state.all_ids
+        id_valid, location = valid_id(session_id, cache, all_ids)
+
+    if id_valid and location == "db":
+        manager = restore_from_database(request.app.state.db, session_id)
+        if manager is not None:
+            cache[session_id] = manager
+            logging.info(
+                "Session id: %s validated. Restored from database.", session_id
+            )
 
     if not id_valid:  # no session id or no id_valid
+        logging.info("Session id missing or invalid, issuing new id")
         session_id = str(uuid.uuid4())
         manager = GridManager()
         request.app.state.all_ids.add(session_id)  # add to existing ids
@@ -169,7 +189,7 @@ async def login(
             value=session_id,
             httponly=True,
             secure=True,
-            samesite="none", # not "lax"
+            samesite="none",  # not "lax"
             max_age=60
             * 60
             * config.DATA_EXPIRY_LENGTH
@@ -193,6 +213,11 @@ async def login(
 @router.get("/health/")
 async def health_check():
     return {"status": "ok"}
+
+
+@router.get("/")
+async def root():
+    return {"name": "nsplanner API", "version": config.VERSION, "status": "running"}
 
 
 @router.get("/cached_items/")  # protected
@@ -401,7 +426,7 @@ async def allocate_shift(
 
     allocation_size = __resolve_allocation_size(
         grid_handler.day, time_block, allocation_size, manager
-    ) 
+    )
 
     if allocation_size == "1":
         grid_handler.allocate_shift(location, time_block, name)
@@ -423,8 +448,8 @@ async def allocate_shift(
             "name": name,
             "time_block": time_block,
             "allocation_size": allocation_size,
-            "location": location
-        } 
+            "location": location,
+        },
     )
 
 

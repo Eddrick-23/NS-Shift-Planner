@@ -4,7 +4,7 @@
       <p style="color: red">Login failed. Please try again later.</p>
     </div>
     
-    <div v-else-if="!loading" class="p-4 flex">
+    <div v-else-if="!loading && !loginFailed" class="p-4 flex">
       <Toast/>
       <LeftDrawer ref="leftDrawer" v-model="drawerVisible" :grid-map="gridMap"/>
       <div class="relative min-h-screen transition-all duration-300 w-full" :class="{ 'ml-110': drawerVisible }">
@@ -13,7 +13,7 @@
             <Select v-model="selectedGrid" :options="ALL_GRIDS" optionLabel="name" placeholder="Select Grid" optionValue="code" :showClear="true" class="w-full" />
           </div>
           <div class="col-span-2 flex flex-col items-center justify-center">
-            <InputText type="text" placeholder="Name" v-model="typedName" class="w-full"/>
+            <InputText id="nameInputText" type="text" placeholder="Name" v-model="typedName" class="w-full"/>
           </div>
           <div class="col-span-2 flex flex-col items-center justify-center">
             <ButtonGroup class="flex w-full">
@@ -228,9 +228,10 @@ function setAllGridRef() {
   }
 }
 
+
 onMounted(() => {
   checkLoginStatus();
-  setAllGridRef();
+  setAllGridRef(); 
 });
 
 </script>

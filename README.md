@@ -1,6 +1,6 @@
 <h1 align="center">Welcome to NS-Shift-Planner</h1>
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-2.0.0--beta-blue.svg?cacheSeconds=2592000" />
+  <img alt="Version" src="https://img.shields.io/badge/version-2.0.1--beta-blue.svg?cacheSeconds=2592000" />
   <a href="LICENSE.txt">
     <img alt="License: GPL v3" src="https://img.shields.io/badge/License-GPLv3-blue.svg" />
   </a>
@@ -12,9 +12,9 @@
 
 Access it here: https://www.app.nsplanner.com
 
-## What's New (v2.0.0-beta)
-- Ported frontend over to Vue JS
-- Session management by http cookies <br>
+## What's New (v2.0.1-beta)
+- Backend bug fixes
+- Added tab name and logo for frontend
 
 See full [CHANGELOG.md](./CHANGELOG.md) for older versions.
 

@@ -2,15 +2,15 @@
     <div class="flex flex-col gap-2">
         <div>
             <RadioButton v-model="modelValue" inputId="selectedSize1" name="first 30min" value="0.25" variant="filled"/>
-            <label for="ingredient1">First 30min</label>
+            <label for="selectedSize1">First 30min</label>
         </div>
         <div>
             <RadioButton v-model="modelValue" inputId="selectedSize2" name="full" value="1" variant="filled"/>
-            <label for="ingredient2">Full</label>
+            <label for="selectedSize2">Full</label>
         </div>
         <div>
             <RadioButton v-model="modelValue" inputId="selectedSize3" name="last 30min" value="0.75" variant="filled" />
-            <label for="ingredient3">Last 30min</label>
+            <label for="selectedSize3">Last 30min</label>
         </div>
     </div>
 </template>

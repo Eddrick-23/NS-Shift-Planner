@@ -213,6 +213,7 @@ const allNames = computed(() => {
 })
 
 onMounted(async () => {
+    console.log("Grid mounted, fetching data ...");
     await fetchGridData();
 })
 const rowData = ref([]);

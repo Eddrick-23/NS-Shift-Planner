@@ -18,6 +18,7 @@ class Config:
             PRUNE_DB_INTERVAL (int): Time interval (in hours) for periodically pruning expired data from the database.
             DATA_EXPIRY_LENGTH (int): Duration (in days) after which session data is considered expired and will be delete during DB Pruning.
             SCAN_CACHE_INTERVAL (int): Time interval (in minutes) for scanning and refreshing the in-memory cache.
+            VERSION (str): The current app version.
         """
 
         self.ENVIRONMENT = self.get_variable("ENVIRONMENT")
@@ -31,6 +32,7 @@ class Config:
         )
         self.DB_COLLECTION_NAME = self.get_variable("DB_COLLECTION_NAME")
         self.API_KEY = self.get_variable("API_KEY")
+        self.VERSION = self.get_variable("VERSION")
         self.LRU_CACHE_SIZE = int(self.get_variable("LRU_CACHE_SIZE"))
         self.PRUNE_DB_INTERVAL = int(self.get_variable("PRUNE_DB_INTERVAL"))
         self.DATA_EXPIRY_LENGTH = int(self.get_variable("DATA_EXPIRY_LENGTH"))

@@ -180,7 +180,7 @@ class APIKEYMiddleware(BaseHTTPMiddleware):
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     body = await request.body()
-    logging.info("Validation error on /grid/")
+    logging.info("Validation error on: %s", request.url)
     logging.info("Request body: %s", body.decode())
     logging.info("Validation errors: %s", exc.errors())
     return JSONResponse(
