@@ -1,11 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
-from httpx import AsyncClient
 from src.backend.app import create_app
 from src.backend.routes import get_manager
 from src.backend.internal.grid_manager import GridManager
-from unittest.mock import Mock
-from src.backend.internal.time_blocks import DAY_BLOCK_MAP,HALF_DAY_BLOCK_MAP
+from src.backend.internal.time_blocks import HALF_DAY_BLOCK_MAP
 
 
 @pytest.fixture()

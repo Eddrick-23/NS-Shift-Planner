@@ -53,7 +53,7 @@ def restore_from_database(db: Client, session_id: str) -> GridManager | None:
 
 
 def valid_id(
-    session_id: str, cache: CustomLRUCache, all_ids: set
+    session_id: str, manager_cache: CustomLRUCache, db_client: Client
 ) -> tuple[bool, str | None]:
     """
     Checks if a session_id exists in cache or database
@@ -62,10 +62,19 @@ def valid_id(
         bool: True if session_id exists
         str: where the session_id exists OR None for invalid id
     """
-    if session_id in cache:
+    # check cache
+    if session_id in manager_cache:
         return True, "cache"
-    if session_id in all_ids:
-        return True, "db"
+
+    # check database
+    projects_ref = db_client.collection(DB_COLLECTION_NAME)
+    docs = projects_ref.stream()
+
+    for doc in docs:
+        file_name = doc.id
+        stored_id = file_name.partition(":")[2]
+        if session_id == stored_id:
+            return True, "db"
 
     return False, None
 
@@ -74,9 +83,8 @@ def get_manager(
     request: Request, session_id=Cookie(..., alias="session_id")
 ) -> GridManager:
     cache: CustomLRUCache = request.app.state.manager_cache
-    all_ids: set = request.app.state.all_ids
-
-    valid, location = valid_id(session_id, cache, all_ids)
+    db_client: Client = request.app.state.db
+    valid, location = valid_id(session_id, cache, db_client)
 
     if not valid:
         raise HTTPException(
@@ -155,27 +163,29 @@ async def login(
     # if there is no session id, issue an id
     # if there is a session id, authenticate it first, load manager to cache
 
+    manager_cache: CustomLRUCache = request.app.state.manager_cache
+    db_client: Client = request.app.state.db
     # issue session id in http header
     id_valid = False
     location = ""
     if session_id is not None:
-        cache: CustomLRUCache = request.app.state.manager_cache
-        all_ids: set = request.app.state.all_ids
-        id_valid, location = valid_id(session_id, cache, all_ids)
+        id_valid, location = valid_id(session_id, manager_cache, db_client)
 
     if id_valid and location == "db":
         manager = restore_from_database(request.app.state.db, session_id)
         if manager is not None:
-            cache[session_id] = manager
+            manager_cache[session_id] = manager
             logging.info(
                 "Session id: %s validated. Restored from database.", session_id
             )
+        else:
+            id_valid = False  # fall through and create new session
 
-    if not id_valid:  # no session id or no id_valid
+    if not id_valid:
         logging.info("Session id missing or invalid, issuing new id")
         session_id = str(uuid.uuid4())
         manager = GridManager()
-        request.app.state.all_ids.add(session_id)  # add to existing ids
+        # request.app.state.all_ids.add(session_id)  # add to existing ids
         request.app.state.manager_cache[session_id] = manager  # add to lru cache
 
     response = JSONResponse(
@@ -229,8 +239,9 @@ async def get_num_cached_items(request: Request):
 
 @router.get("/session_exists/")  # protected
 async def session_exists(request: Request, session_id: str):
-    logging.debug(request.app.state.all_ids._set)
-    response = {"exists": session_id in request.app.state.all_ids}
+    # logging.debug(request.app.state.all_ids._set)
+    exists, location = valid_id(session_id, request.app.state.manager_cache, request.app.state.db)
+    response = {"exists": exists, "location": location}
     return JSONResponse(status_code=status.HTTP_200_OK, content=response)
 
 

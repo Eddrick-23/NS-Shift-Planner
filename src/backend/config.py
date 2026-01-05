@@ -38,9 +38,9 @@ class Config:
         self.DATA_EXPIRY_LENGTH = int(self.get_variable("DATA_EXPIRY_LENGTH"))
         self.SCAN_CACHE_INTERVAL = int(self.get_variable("SCAN_CACHE_INTERVAL"))
         logging.info("Backend configs loaded")
-    
-    def check_valid_environment(self,environement:str):
-        if environement not in ["DEV","PROD"]:
+
+    def check_valid_environment(self, environement: str):
+        if environement not in ["DEV", "PROD"]:
             raise RuntimeError("Invalid ENVIRONMENT env variable should be DEV/PROD")
 
     def get_variable(self, key: str) -> str:

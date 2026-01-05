@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## [Unreleased]
+## [2.0.2-beta] - 2025-08-31
+### Added
+- bug fix for backend "prune_db" method. When a session is pruned, its record in `app.state.cache` is also removed.
+- bug fix for CustomLRUCache in lru_cache.py `expire_at` in `sync to firebase` set to follow `config.DATA_EXPIRY_LENGTH`. Previously set to `1`.
+
+### Changed
+- Removed ThreadSafeSet class since we do not cache all ids. Use db as source of truth.
 ---
 ## [2.0.1-beta] - 2025-08-04
 ### Added

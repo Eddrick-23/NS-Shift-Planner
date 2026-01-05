@@ -5,38 +5,104 @@ import time
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from starlette.middleware.base import BaseHTTPMiddleware
-from fastapi import FastAPI, status,Request
+from fastapi import FastAPI, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import firebase_admin
 from firebase_admin import credentials, firestore
 from google.cloud.firestore import Client
+from google.cloud.firestore import FieldFilter
 from src.backend.config import config
 from src.backend.internal.lru_cache import CustomLRUCache
-from src.backend.internal.thread_safe_set import ThreadSafeSet
 from src.backend.routes import router
 
 from fastapi.exceptions import RequestValidationError
 from starlette.status import HTTP_422_UNPROCESSABLE_ENTITY
 
-CRED_DICT = json.loads(config.GOOGLE_APPLICATION_CREDENTIALS)
-CRED = credentials.Certificate(CRED_DICT)
-firebase_admin.initialize_app(CRED)
-DB_COLLECTION_NAME = config.DB_COLLECTION_NAME
 
-# Initialize Firestore client
-db: Client = firestore.client()
-cache = CustomLRUCache(config.LRU_CACHE_SIZE, db)
-if config.ENVIRONMENT == "DEV":
-    logging.basicConfig(level=logging.DEBUG, force=True)
-elif config.ENVIRONMENT == "PROD":
-    logging.basicConfig(level=logging.INFO, force=True)
+# setup functions
+def setup_logging():
+    if config.ENVIRONMENT == "DEV":
+        logging.basicConfig(level=logging.DEBUG, force=True)
+    elif config.ENVIRONMENT == "PROD":
+        logging.basicConfig(level=logging.INFO, force=True)
 
-# lifespan function to manage background tasks
-async def prune_db(db: Client, interval_hours: int):
+
+def init_firebase() -> Client:
+    """Initialise firebase and returns the DB Client"""
+    if not firebase_admin._apps:
+        CRED_DICT = json.loads(config.GOOGLE_APPLICATION_CREDENTIALS)
+        CRED = credentials.Certificate(CRED_DICT)
+        firebase_admin.initialize_app(CRED)
+
+    return firestore.client()
+
+
+# def load_existing_ids(db: Client, db_collection_name: str) -> ThreadSafeSet:
+#     projects_ref = db.collection(db_collection_name)
+#     docs = projects_ref.stream()
+
+#     all_ids = ThreadSafeSet()
+#     for doc in docs:
+#         file_name = doc.id
+#         session_id = file_name.partition(":")[2]
+#         all_ids.add(session_id)
+#     return all_ids
+
+
+# Background tasks
+def database_remove_expired(
+    db: Client, db_collection_name: str, timestamp: datetime
+) -> list[str]:
+    """
+    Check database for documents older than timestamp. Remove those from database.
+
+    Args:
+        db: FireStore Client
+        db: database collection name
+        timestamp: python datetime timestamp
+    Returns:
+        list of removed document ids
+    """
+    removed = []
+    try:
+        docs = (
+            db.collection(db_collection_name)
+            .where(filter=FieldFilter("expireAt", "<", timestamp))
+            .stream()
+        )
+        for doc in docs:
+            doc.reference.delete()
+            session_id = doc.id.partition(":")[2]
+            removed.append(session_id)
+
+    except Exception as e:
+        logging.error("Error in firestore cleanup: %s", e)
+    logging.info(f"Deleted {len(removed)} expired documents.")
+    return removed
+
+
+def cache_remove_expired(manager_cache: CustomLRUCache, removed_ids: list[str]):
+    """
+    remove expired ids from cache once pruned from database
+
+    Args:
+        manager_cache: CustomLRUCache Instance
+    """
+    for id in removed_ids:
+        manager_cache.pop(id, None)
+
+
+# TODO fix bug, prune should also remove from manager_cache and id_cache
+async def prune_expired_sessions(
+    db: Client,
+    db_collection_name: str,
+    manager_cache: CustomLRUCache,
+    interval_hours: int,
+):
     """
     Periodically scans Firestore and deletes documents older than 'expireAt'.
-
+    Pruned documents are also removed from cache
     Args:
         db: Firestore client
         interval_days (int): How often to run the scan (in hours)
@@ -46,40 +112,14 @@ async def prune_db(db: Client, interval_hours: int):
             now = datetime.now(timezone.utc)
             logging.info(f"[{now}] Running Firestore cleanup")
 
-            # Use FieldFilter to avoid the positional argument warning
-            from google.cloud.firestore import FieldFilter
-
-            docs = (
-                db.collection(DB_COLLECTION_NAME)
-                .where(filter=FieldFilter("expireAt", "<", now))
-                .stream()
-            )
-
-            deleted_count = 0
-            # Use regular for loop, not async for - Firestore stream() is synchronous
-            for doc in docs:
-                doc.reference.delete()
-                deleted_count += 1
-
-            logging.info(f"Deleted {deleted_count} expired documents.")
+            removed = database_remove_expired(db, db_collection_name, now)
+            cache_remove_expired(manager_cache, removed)
 
         except Exception as e:
             logging.error("Error during Firestore cleanup: %s", e)
 
         # Wait interval before next scan
         await asyncio.sleep(interval_hours * 3600)
-
-
-def load_existing_ids(db: Client) -> ThreadSafeSet:
-    projects_ref = db.collection(DB_COLLECTION_NAME)
-    docs = projects_ref.stream()
-
-    all_ids = ThreadSafeSet()
-    for doc in docs:
-        file_name = doc.id
-        session_id = file_name.partition(":")[2]
-        all_ids.add(session_id)
-    return all_ids
 
 
 async def scan_cache(cache: CustomLRUCache, interval: int, run_once: bool = False):
@@ -111,17 +151,33 @@ async def scan_cache(cache: CustomLRUCache, interval: int, run_once: bool = Fals
             synced_sessions,
             time.time() - start_time,
         )
-        synced_sessions = 0 #reset counter after scan
+        synced_sessions = 0  # reset counter after scan
         if run_once:
             break
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    task1 = asyncio.create_task(prune_db(db, config.PRUNE_DB_INTERVAL))
-    loaded_ids = load_existing_ids(db)
-    app.state.all_ids = loaded_ids
-    task2 = asyncio.create_task(scan_cache(cache, config.SCAN_CACHE_INTERVAL))
+    setup_logging()
+
+    # create DB and cache
+    db_collection_name = config.DB_COLLECTION_NAME
+    db_client = init_firebase()
+    manager_cache = CustomLRUCache(config.LRU_CACHE_SIZE, db_client)
+
+    task1 = asyncio.create_task(
+        prune_expired_sessions(
+            db_client,
+            db_collection_name,
+            manager_cache,
+            config.PRUNE_DB_INTERVAL,
+        )
+    )
+    task2 = asyncio.create_task(scan_cache(manager_cache, config.SCAN_CACHE_INTERVAL))
+
+    # store in app state
+    app.state.manager_cache = manager_cache  # stored grid manager instances
+    app.state.db = db_client  # firebase database client
     logging.info("Background tasks started")
 
     yield
@@ -134,25 +190,24 @@ async def lifespan(app: FastAPI):
         await asyncio.gather(task1, task2)
     except asyncio.CancelledError:
         pass  # expected during shutdown
+
     # run cache scan one more time to sync all data to firestore
     if config.ENVIRONMENT != "DEV":  # don't save in dev to avoid overloading database
         logging.info("Syncing changes before shutdown")
-        await scan_cache(cache, config.SCAN_CACHE_INTERVAL, run_once=True)
+        await scan_cache(manager_cache, config.SCAN_CACHE_INTERVAL, run_once=True)
     logging.info("Shutdown Complete")
 
-def create_app(use_lifespan:bool=True):
+
+def create_app(use_lifespan: bool = True):
     app = FastAPI(lifespan=lifespan if use_lifespan else None)
     app.include_router(router)
-    app.state.manager_cache = cache
-    app.state.db = db
     return app
+
 
 app = create_app()
 
 # CORS configuration
-origins = ["http://localhost:8080",
-           config.FRONT_END_DOMAIN
-           ]
+origins = ["http://localhost:8080", config.FRONT_END_DOMAIN]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -163,19 +218,29 @@ app.add_middleware(
 
 
 # Middleware for API Key authentication for protected endpoints
-INCLUDED_PATHS = ["/cached_items","/cached_items/","/session_exists","/session_exists/"]
+INCLUDED_PATHS = [
+    "/cached_items",
+    "/cached_items/",
+    "/session_exists",
+    "/session_exists/",
+]
 API_KEY_NAME = "x-api-key"
+
 
 class APIKEYMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
-        #skip excluded paths
+        # skip excluded paths
         if not any(request.url.path.startswith(path) for path in INCLUDED_PATHS):
             return await call_next(request)
-        
+
         api_key = request.headers.get(API_KEY_NAME)
         if api_key != config.API_KEY:
-            return JSONResponse(status_code=status.HTTP_403_FORBIDDEN, content={"detail": "Invalid or missing API Key"})
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content={"detail": "Invalid or missing API Key"},
+            )
         return await call_next(request)
+
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -187,5 +252,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         content={"detail": exc.errors()},
     )
+
 
 app.add_middleware(APIKEYMiddleware)

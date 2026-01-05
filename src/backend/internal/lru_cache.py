@@ -65,7 +65,7 @@ class CustomLRUCache(LRUCache):
             doc_id = f"session_id:{session_id}"
             doc_ref = self.firebase.collection(self.__DB_COLLECTION_NAME).document(doc_id)
             updated = datetime.now(timezone.utc)
-            expire_at = updated + timedelta(days=1)
+            expire_at = updated + timedelta(days=config.DATA_EXPIRY_LENGTH)
 
             doc_ref.set(
                 {
