@@ -220,14 +220,14 @@ async def login(
     return response
 
 
-@router.get("/health/")
-async def health_check():
-    return {"status": "ok"}
+# @router.get("/health/")
+# async def health_check():
+#     return {"status": "ok"}
 
 
-@router.get("/")
-async def root():
-    return {"name": "nsplanner API", "version": config.VERSION, "status": "running"}
+# @router.get("/")
+# async def root():
+#     return {"name": "nsplanner API", "version": config.VERSION, "status": "running"}
 
 
 @router.get("/cached_items/")  # protected

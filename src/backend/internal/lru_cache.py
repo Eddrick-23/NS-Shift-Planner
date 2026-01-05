@@ -77,7 +77,7 @@ class CustomLRUCache(LRUCache):
                 }
             )
             manager.requires_sync = False
-            logging.info("Synced session %s to Firestore", session_id)
+            logging.debug("Synced session %s to Firestore", session_id)
 
         except Exception as e:
             logging.error(

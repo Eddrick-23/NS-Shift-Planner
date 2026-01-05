@@ -1,12 +1,15 @@
 import pytest
+from pytest_mock import MockerFixture
 import asyncio
 from src.backend.app import prune_expired_sessions
+from src.backend.app import scan_cache
 from src.backend.internal.lru_cache import CustomLRUCache
+from src.backend.internal.grid_manager import GridManager
 from unittest.mock import MagicMock
 
 
 @pytest.mark.asyncio
-async def test_db_prune_pops_cache(mocker):
+async def test_db_prune_pops_cache(mocker: MockerFixture):
     """
     During db pruning, when a session is pruned, that id should also be removed from lru cache instance, if present.
     """
@@ -35,5 +38,17 @@ async def test_db_prune_pops_cache(mocker):
 
     assert "testid" not in test_manager_cache
 
+@pytest.mark.asyncio
+async def test_scan_cache(mocker: MockerFixture):
+    test_manager_cache = CustomLRUCache(2, None)
+    test_manager = GridManager()
+    test_manager.requires_sync = True
 
-# TODO add unit test for cache scan?
+    test_manager_cache["testid"] = test_manager
+    mock_cache_sync_to_firebase = mocker.patch.object(
+        test_manager_cache, "sync_to_firebase"
+    )
+
+    await scan_cache(test_manager_cache, 1, True)
+
+    mock_cache_sync_to_firebase.assert_called_once()

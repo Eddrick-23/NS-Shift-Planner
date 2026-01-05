@@ -14,7 +14,7 @@ from google.cloud.firestore import Client
 from google.cloud.firestore import FieldFilter
 from src.backend.config import config
 from src.backend.internal.lru_cache import CustomLRUCache
-from src.backend.routes import router
+from src.backend.routers import health, planner
 
 from fastapi.exceptions import RequestValidationError
 from starlette.status import HTTP_422_UNPROCESSABLE_ENTITY
@@ -36,18 +36,6 @@ def init_firebase() -> Client:
         firebase_admin.initialize_app(CRED)
 
     return firestore.client()
-
-
-# def load_existing_ids(db: Client, db_collection_name: str) -> ThreadSafeSet:
-#     projects_ref = db.collection(db_collection_name)
-#     docs = projects_ref.stream()
-
-#     all_ids = ThreadSafeSet()
-#     for doc in docs:
-#         file_name = doc.id
-#         session_id = file_name.partition(":")[2]
-#         all_ids.add(session_id)
-#     return all_ids
 
 
 # Background tasks
@@ -200,7 +188,8 @@ async def lifespan(app: FastAPI):
 
 def create_app(use_lifespan: bool = True):
     app = FastAPI(lifespan=lifespan if use_lifespan else None)
-    app.include_router(router)
+    app.include_router(health.router)
+    app.include_router(planner.router)
     return app
 
 

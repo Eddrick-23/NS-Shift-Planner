@@ -1,8 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
 from src.backend.app import create_app
-from src.backend.routes import get_manager
+from src.backend.routers.planner import get_manager
 from src.backend.internal.grid_manager import GridManager
+from src.backend.internal.lru_cache import CustomLRUCache
 from src.backend.internal.time_blocks import HALF_DAY_BLOCK_MAP
 
 
@@ -14,7 +15,7 @@ def test_client_factory(request):
 
     def _create_test_client(manager: GridManager):
         app = create_app(use_lifespan=False)
-
+        app.state.manager_cache = CustomLRUCache(10, None) # no need db client
         def override_get_manager():
             return manager
 
