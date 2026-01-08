@@ -220,16 +220,6 @@ async def login(
     return response
 
 
-# @router.get("/health/")
-# async def health_check():
-#     return {"status": "ok"}
-
-
-# @router.get("/")
-# async def root():
-#     return {"name": "nsplanner API", "version": config.VERSION, "status": "running"}
-
-
 @router.get("/cached_items/")  # protected
 async def get_num_cached_items(request: Request):
     cache: CustomLRUCache = request.app.state.manager_cache
@@ -240,7 +230,9 @@ async def get_num_cached_items(request: Request):
 @router.get("/session_exists/")  # protected
 async def session_exists(request: Request, session_id: str):
     # logging.debug(request.app.state.all_ids._set)
-    exists, location = valid_id(session_id, request.app.state.manager_cache, request.app.state.db)
+    exists, location = valid_id(
+        session_id, request.app.state.manager_cache, request.app.state.db
+    )
     response = {"exists": exists, "location": location}
     return JSONResponse(status_code=status.HTTP_200_OK, content=response)
 
@@ -559,7 +551,8 @@ async def swap_names(
     # swap in GridManager hour tracking
     if not swapped:
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    manager.swap_hours(names[0], names[1], target_grid)
+    manager.update_hours(names[0], target_grid)
+    manager.update_hours(names[1], target_grid)
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={"detail": f"Swapped {names}, target_grid:{target_grid}"},

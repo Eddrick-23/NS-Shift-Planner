@@ -106,7 +106,7 @@ class GridManager:
         """
         return name in self.existing_names[f"DAY{day}"]
 
-    def get_all_hours(self) -> tuple[list,list]:
+    def get_all_hours(self) -> tuple[list, list]:
         """
         Return data from all_hours attribute as rowData for aggrid
         """
@@ -143,14 +143,14 @@ class GridManager:
         handler = self.all_grids[target_grid]
         handler = cast(GridHandler, handler)
         name_exists = False
-        #check if name exists
+        # check if name exists
         for names in self.existing_names.values():
             if name in names:
                 name_exists = True
                 break
-        #name no longer exists, remove all entry of this name
+        # name no longer exists, remove all entry of this name
         if not name_exists:
-            __update_day_hours(handler.day,name,0)
+            __update_day_hours(handler.day, name, 0)
             self.all_hours.pop(name, None)
             return
         if not handler.name_exists(name):  # name has been removed
@@ -168,25 +168,6 @@ class GridManager:
 
         hour_data = handler.get_hours()
         __update_day_hours(handler.day, name, hour_data[name])
-    
-    def swap_hours(self,name1:str,name2:str,target_grid:str):
-        """
-        Swap hour data for 2 names
-
-        Args:
-            name1(str):first name
-            name2(str):second name
-            target_grid(str): grid containing the swapped names
-        """
-        if name1 not in self.all_hours:
-            logging.error("%s not tracked in manager.all_hours", name1)
-            return
-        if  name2 not in self.all_hours:
-            logging.error("%s not tracked in manager.all_hours", name2)
-            return
-        day:int = int(target_grid[3])
-        key = f"Day {day}"
-        self.all_hours[name1][key],self.all_hours[name2][key] = self.all_hours[name2][key],self.all_hours[name1][key]
 
     def serialise_to_zip(self):
         """
@@ -228,7 +209,7 @@ class GridManager:
         with zipfile.ZipFile(io.BytesIO(zip_bytes), "r") as zip_file:
             # Read manifest
             manager_data = json.loads(zip_file.read("manager_info.json").decode())
-            instance.requires_sync=True
+            instance.requires_sync = True
             instance.all_hours = manager_data["all_hours"]
             instance.existing_names = {
                 k: set(v) for k, v in manager_data["existing_names"].items()

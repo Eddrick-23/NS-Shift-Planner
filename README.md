@@ -12,9 +12,8 @@
 
 Access it here: https://www.app.nsplanner.com
 
-## What's New (v2.0.1-beta)
+## What's New (v2.0.2-beta)
 - Backend bug fixes
-- Added tab name and logo for frontend
 
 See full [CHANGELOG.md](./CHANGELOG.md) for older versions.
 

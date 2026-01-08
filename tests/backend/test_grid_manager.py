@@ -101,6 +101,7 @@ def test_class_init(test_manager: "GridManager"):
 
     assert expected_configs == set()
 
+
 def test_format_keys_join_time_block_one_dataframe(test_manager, handler_factory):
     handler = handler_factory(location="MCC", day=3)
     handler = cast(GridHandler, handler)
@@ -114,9 +115,7 @@ def test_format_keys_join_time_block_one_dataframe(test_manager, handler_factory
     handler.allocate_shift("MCC", "06:00", "TEST2")
     handler.allocate_shift("MCC", "06:30", "TEST2")
 
-    blocks_to_remove = test_manager.format_keys(
-        tb.HALF_DAY_BLOCK_MAP[3], handler.data
-    )
+    blocks_to_remove = test_manager.format_keys(tb.HALF_DAY_BLOCK_MAP[3], handler.data)
 
     for time_block in blocks_to_remove:  # every 1h block can be combined
         assert ":00" not in time_block
@@ -203,6 +202,7 @@ def test_format_keys_join_time_block(
 
     for time_block in blocks_to_remove:
         assert ":00" not in time_block
+
 
 @pytest.mark.parametrize(
     "day, allocate_loc1,allocate_loc2, allocate_loc3",
@@ -394,7 +394,7 @@ def test_get_all_hours(manager_all_grid_with_name: "GridManager"):
         grid_handler.allocate_shift(
             location=grid_handler.location, time_block=time_block_2, name=name
         )
-    
-    all_hour_data, _ =  manager.get_all_hours()
+
+    all_hour_data, _ = manager.get_all_hours()
     for hour_list in all_hour_data:
         assert sum(hour_list) == 1.0
